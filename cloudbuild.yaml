@@ -22,22 +22,8 @@ steps:
       - "push"
       - "$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO_NAME/$_IMAGE_NAME:latest"
 
-  # 3. Deploy to Cloud Run
-  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
-    entrypoint: gcloud
-    args:
-      - "run"
-      - "deploy"
-      - "$_SERVICE_NAME"
-      - "--image"
-      - "$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO_NAME/$_IMAGE_NAME:$SHORT_SHA"
-      - "--region"
-      - "$_DEPLOY_REGION"
-      - "--platform"
-      - "managed"
-      - "--allow-unauthenticated"
-
 # Store the built images in Artifact Registry
+# This ensures Cloud Build tracks these images as the build output.
 images:
   - "$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO_NAME/$_IMAGE_NAME:$SHORT_SHA"
   - "$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO_NAME/$_IMAGE_NAME:latest"
@@ -49,8 +35,6 @@ substitutions:
   _AR_HOSTNAME: "asia-south1-docker.pkg.dev"
   _AR_REPO_NAME: "invoice-generator"
   _IMAGE_NAME: "invoice-generator"
-  _SERVICE_NAME: "invoice-generator"
-  _DEPLOY_REGION: "asia-south1"
 
 # Use Cloud Logging for build output
 options:

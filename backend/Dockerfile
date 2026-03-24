@@ -2,16 +2,12 @@
 FROM node:20-slim AS frontend-builder
 WORKDIR /app
 
-# In a monorepo, we need the root package files and ALL workspace package files
-# to ensure the lockfile remains valid during 'npm ci'
+# In an NPM workspace, we need all package files for 'npm ci' to work
 COPY package*.json ./
 COPY backend/package*.json ./backend/
 COPY frontend/package*.json ./frontend/
 
-# Install dependencies for the whole workspace
 RUN npm ci
-
-# Copy and build frontend
 COPY frontend/ ./frontend/
 RUN npm run build:frontend
 
@@ -21,51 +17,51 @@ FROM node:20-slim AS backend-builder
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
-# Copy package files (re-using cache if possible)
 COPY package*.json ./
 COPY backend/package*.json ./backend/
 COPY frontend/package*.json ./frontend/
 
-# Install dependencies
 RUN npm ci
-
-# Copy backend source
 COPY backend/ ./backend/
-
-# Generate Prisma Client
+# Generate Prisma Client and build TS
 RUN npm run prisma:generate
-
-# Build the TypeScript project
 RUN npm run build:backend
 
 # Stage 3: Production Image
 FROM node:20-slim
-# Install openssl for Prisma
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# Essential for Prisma runtime
+RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=8080
 
-# Copy package files
+# Copy package files for production install
 COPY package*.json ./
 COPY backend/package*.json ./backend/
 COPY frontend/package*.json ./frontend/
 
 # Install only production dependencies
+# This includes @prisma/client which was generated in the previous stage
+# or will be generated here.
 RUN npm ci --omit=dev
 
-# Copy built backend assets and prisma
+# Copy the generated Prisma client from backend-builder
+# (Prisma by default puts the client in node_modules/.prisma)
+COPY --from=backend-builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=backend-builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+
+# Copy built backend code and prisma schema
 COPY --from=backend-builder /app/backend/dist ./backend/dist
 COPY --from=backend-builder /app/backend/prisma ./backend/prisma
-COPY --from=backend-builder /app/node_modules ./node_modules
 
 # Copy built frontend assets to be served by the backend
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-# Expose the port
+# Expose the Cloud Run default port
 EXPOSE 8080
 
-# Command to run the application
+# The backend and frontend work in tandem on the same port.
+# The backend (Express) serves the frontend (Static Files) and the API.
 CMD ["node", "backend/dist/index.js"]

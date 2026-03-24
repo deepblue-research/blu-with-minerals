@@ -1,15 +1,16 @@
 import dotenv from "dotenv";
-// Load environment variables as the very first step
-dotenv.config();
-
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import path from "path";
+import fs from "fs";
 import { prisma } from "./db";
 import clientRoutes from "./routes/client.routes";
 import invoiceRoutes from "./routes/invoice.routes";
 import recurringRoutes from "./routes/recurring.routes";
 import profileRoutes from "./routes/profile.routes";
-import path from "path";
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -24,31 +25,50 @@ app.use("/api/recurring", recurringRoutes);
 app.use("/api/profile", profileRoutes);
 
 // Health check endpoint
-app.get("/health", (req, res) => {
+app.get("/health", (req: Request, res: Response) => {
   res.json({ status: "ok", message: "Invoice Generator Service is running" });
 });
 
-// Serve frontend static files
+/**
+ * Port Handling & Frontend Integration
+ * In Cloud Run, the backend and frontend work in tandem on a single port.
+ * The backend serves the frontend's static assets (HTML/JS/CSS).
+ */
 const frontendPath = path.join(__dirname, "../../frontend/dist");
-app.use(express.static(frontendPath));
+
+// Debug log to verify frontend path in the container logs
+console.log(`Checking frontend assets at: ${frontendPath}`);
+if (fs.existsSync(frontendPath)) {
+  console.log("Frontend assets found. Serving static files.");
+  app.use(express.static(frontendPath));
+} else {
+  console.warn("WARNING: Frontend dist directory not found. Frontend will not be served.");
+}
 
 // SPA catch-all: route all non-API requests to index.html
-app.get("*", (req, res) => {
+// Note: Express 5 / path-to-regexp v8 requires the wildcard to be (.*)
+app.get("/(.*)", (req: Request, res: Response) => {
   if (req.path.startsWith("/api")) {
     return res.status(404).json({ error: "API endpoint not found" });
   }
-  res.sendFile(path.join(frontendPath, "index.html"));
+
+  const indexPath = path.join(frontendPath, "index.html");
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send("Frontend application not found. Please ensure the build step completed successfully.");
+  }
 });
 
 // Basic error handling middleware
 app.use(
   (
     err: any,
-    req: express.Request,
-    res: express.Response,
-    next: express.NextFunction,
+    req: Request,
+    res: Response,
+    next: NextFunction,
   ) => {
-    console.error(err.stack);
+    console.error("Server Error:", err.stack);
     const status = err.status || 500;
     const message = err.message || "Something went wrong!";
     res.status(status).json({ error: message });
