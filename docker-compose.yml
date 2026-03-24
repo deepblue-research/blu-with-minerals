@@ -1,0 +1,38 @@
+services:
+  # Unified Application Service (Backend + Frontend)
+  # This service builds the image and runs the Express server which serves both the API and the React frontend.
+  app:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: invoice-generator-app
+    ports:
+      - "9090:8080"
+
+    # Explicitly load environment variables from a .env file
+    # This file should contain DATABASE_URL, GOOGLE_CLOUD_PROJECT, SMTP_HOST, etc.
+    env_file:
+      - backend/.env
+
+    # Explicitly set DNS to bypass any local hijacking or misconfiguration
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+
+    environment:
+      - PORT=8080
+      - NODE_ENV=production
+
+    restart: on-failure
+
+    # Attach to the custom network defined below to apply MTU fixes
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+    driver_opts:
+      # Reducing MTU to 1400 helps large SSL packets (like DB handshakes) pass through
+      # without being dropped by container bridge fragmentation issues.
+      com.docker.network.driver.mtu: "1400"
