@@ -1,0 +1,49 @@
+steps:
+  # 1. Build the unified Docker image (Backend + Frontend)
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/invoice-generator:$SHORT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/invoice-generator:latest'
+      - '-f'
+      - 'backend/Dockerfile'
+      - '.'
+
+  # 2. Push the image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/invoice-generator:$SHORT_SHA'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/invoice-generator:latest'
+
+  # 3. Deploy to Cloud Run
+  # Note: Environment variables like DATABASE_URL should be managed in the Cloud Run UI
+  # or via Secret Manager to keep this configuration file clean and secure.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'invoice-generator'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/invoice-generator:$SHORT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+
+# Store the built images in the registry
+images:
+  - 'gcr.io/$PROJECT_ID/invoice-generator:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/invoice-generator:latest'
+
+# Use Cloud Logging for build output
+options:
+  logging: CLOUD_LOGGING_ONLY

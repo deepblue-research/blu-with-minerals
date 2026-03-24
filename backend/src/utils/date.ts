@@ -1,0 +1,12 @@
+/**
+ * Formats a Date object into DD-MM-YYYY string
+ * @param date The date to format
+ * @returns string in DD-MM-YYYY format
+ */
+export const formatDateDDMMYYYY = (date: Date): string => {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+
+  return `${day}-${month}-${year}`;
+};
