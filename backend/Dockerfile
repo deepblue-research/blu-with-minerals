@@ -29,8 +29,8 @@ RUN npm run build:backend
 
 # Stage 3: Production Image
 FROM node:20-slim
-# Essential for Prisma runtime
-RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+# Essential for Prisma runtime and network troubleshooting
+RUN apt-get update && apt-get install -y openssl ca-certificates netcat-openbsd && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Set environment variables

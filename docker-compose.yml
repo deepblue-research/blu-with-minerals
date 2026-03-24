@@ -6,33 +6,20 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     container_name: invoice-generator-app
-    ports:
-      - "9090:8080"
+
+    # network_mode: host allows the container to use the host's networking stack directly.
+    # This bypasses the virtual bridge and its MTU/fragmentation issues, making it behave
+    # more like a native application on your machine.
+    # Note: In 'host' mode, port mappings (ports:) are ignored as the container uses the host's ports.
+    network_mode: "host"
 
     # Explicitly load environment variables from a .env file
     # This file should contain DATABASE_URL, GOOGLE_CLOUD_PROJECT, SMTP_HOST, etc.
     env_file:
       - backend/.env
 
-    # Explicitly set DNS to bypass any local hijacking or misconfiguration
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-
     environment:
       - PORT=8080
       - NODE_ENV=production
 
     restart: on-failure
-
-    # Attach to the custom network defined below to apply MTU fixes
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
-    driver_opts:
-      # Reducing MTU to 1400 helps large SSL packets (like DB handshakes) pass through
-      # without being dropped by container bridge fragmentation issues.
-      com.docker.network.driver.mtu: "1400"
