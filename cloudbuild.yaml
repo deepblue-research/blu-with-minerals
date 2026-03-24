@@ -1,48 +1,56 @@
 steps:
   # 1. Build the unified Docker image (Backend + Frontend)
-  - name: 'gcr.io/cloud-builders/docker'
+  - name: "gcr.io/cloud-builders/docker"
     args:
-      - 'build'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/invoice-generator:$SHORT_SHA'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/invoice-generator:latest'
-      - '-f'
-      - 'backend/Dockerfile'
-      - '.'
+      - "build"
+      - "-t"
+      - "$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO_NAME/$_IMAGE_NAME:$SHORT_SHA"
+      - "-t"
+      - "$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO_NAME/$_IMAGE_NAME:latest"
+      - "-f"
+      - "backend/Dockerfile"
+      - "."
 
-  # 2. Push the image to Container Registry
-  - name: 'gcr.io/cloud-builders/docker'
+  # 2. Push the image to Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
     args:
-      - 'push'
-      - 'gcr.io/$PROJECT_ID/invoice-generator:$SHORT_SHA'
+      - "push"
+      - "$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO_NAME/$_IMAGE_NAME:$SHORT_SHA"
 
-  - name: 'gcr.io/cloud-builders/docker'
+  - name: "gcr.io/cloud-builders/docker"
     args:
-      - 'push'
-      - 'gcr.io/$PROJECT_ID/invoice-generator:latest'
+      - "push"
+      - "$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO_NAME/$_IMAGE_NAME:latest"
 
   # 3. Deploy to Cloud Run
-  # Note: Environment variables like DATABASE_URL should be managed in the Cloud Run UI
-  # or via Secret Manager to keep this configuration file clean and secure.
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: gcloud
     args:
-      - 'run'
-      - 'deploy'
-      - 'invoice-generator'
-      - '--image'
-      - 'gcr.io/$PROJECT_ID/invoice-generator:$SHORT_SHA'
-      - '--region'
-      - 'us-central1'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
+      - "run"
+      - "deploy"
+      - "$_SERVICE_NAME"
+      - "--image"
+      - "$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO_NAME/$_IMAGE_NAME:$SHORT_SHA"
+      - "--region"
+      - "$_DEPLOY_REGION"
+      - "--platform"
+      - "managed"
+      - "--allow-unauthenticated"
 
-# Store the built images in the registry
+# Store the built images in Artifact Registry
 images:
-  - 'gcr.io/$PROJECT_ID/invoice-generator:$SHORT_SHA'
-  - 'gcr.io/$PROJECT_ID/invoice-generator:latest'
+  - "$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO_NAME/$_IMAGE_NAME:$SHORT_SHA"
+  - "$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO_NAME/$_IMAGE_NAME:latest"
+
+# Substitutions allow you to share this file publicly while keeping
+# your specific project configuration out of the source code.
+# You can override these in the Cloud Build Trigger settings.
+substitutions:
+  _AR_HOSTNAME: "asia-south1-docker.pkg.dev"
+  _AR_REPO_NAME: "invoice-generator"
+  _IMAGE_NAME: "invoice-generator"
+  _SERVICE_NAME: "invoice-generator"
+  _DEPLOY_REGION: "asia-south1"
 
 # Use Cloud Logging for build output
 options:
