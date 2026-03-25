@@ -119,3 +119,26 @@ export interface CompanyProfile {
   emailBody?: string;
   emailFooterHtml?: string;
 }
+
+export interface DashboardStats {
+  totalSent: number;
+  totalSentTrend: number;
+  paidThisMonth: number;
+  paidTrend: number;
+  outstanding: number;
+  outstandingTrend: number;
+  activeClients: number;
+  clientsTrend: number;
+  upcomingRecurring: number;
+  currency: string;
+}
+
+export interface RecentInvoice {
+  id: string;
+  number: string;
+  client: string;
+  amount: number;
+  date: string;
+  status: 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'VOID';
+  currency: string;
+}

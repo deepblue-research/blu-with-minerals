@@ -5,8 +5,7 @@ import {
   Users,
   FileText,
   RefreshCw,
-  Settings,
-  Receipt
+  Settings
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -22,9 +21,8 @@ export const Sidebar: React.FC = () => {
   return (
     <div className="flex h-full w-64 flex-col bg-white border-r border-gray-200">
       <div className="flex h-16 shrink-0 items-center px-6 border-b border-gray-100">
-        <Receipt className="h-8 w-8 text-primary" />
-        <span className="ml-3 text-xl font-bold tracking-tight text-gray-900">
-          Invoice<span className="text-primary">App</span>
+        <span className="text-xl font-bold tracking-tight text-gray-900">
+          Invoices
         </span>
       </div>
 

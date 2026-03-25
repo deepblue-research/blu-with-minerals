@@ -57,8 +57,7 @@ export const Layout: React.FC = () => {
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed inset-y-0 left-0 z-10">
         <div className="p-6">
           <div className="flex items-center gap-2 mb-8">
-            <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center text-white font-bold">I</div>
-            <span className="text-xl font-bold tracking-tight text-gray-900">InvoiceFlow</span>
+            <span className="text-xl font-bold tracking-tight text-gray-900">Invoices</span>
           </div>
 
           <nav className="space-y-1">

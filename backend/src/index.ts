@@ -8,6 +8,7 @@ import clientRoutes from './routes/client.routes';
 import invoiceRoutes from './routes/invoice.routes';
 import recurringRoutes from './routes/recurring.routes';
 import profileRoutes from './routes/profile.routes';
+import dashboardRoutes from './routes/dashboard.routes';
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/recurring', recurringRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'Invoice Generator Service is running' });

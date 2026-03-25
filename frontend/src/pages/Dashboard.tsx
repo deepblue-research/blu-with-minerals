@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   FileText,
   Users,
@@ -6,27 +6,53 @@ import {
   CheckCircle,
   AlertCircle,
   TrendingUp,
+  TrendingDown,
   ArrowUpRight,
-  MoreVertical
+  MoreVertical,
+  Loader2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { api, DashboardStats, RecentInvoice } from '../utils/api';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  // Mock data for initial UI layout
-  const stats = [
-    { label: 'Total Sent', value: '$12,450.00', icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Paid this Month', value: '$4,200.00', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
-    { label: 'Outstanding', value: '$1,850.00', icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-    { label: 'Active Clients', value: '12', icon: Users, color: 'text-purple-600', bg: 'bg-purple-50' },
-  ];
+  const [statsData, setStatsData] = useState<DashboardStats | null>(null);
+  const [recentInvoices, setRecentInvoices] = useState<RecentInvoice[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const recentInvoices = [
-    { id: '1', number: 'INV-2023-001', client: 'Acme Corp', amount: '$1,200.00', date: '20-11-2023', status: 'PAID' },
-    { id: '2', number: 'INV-2023-002', client: 'Global Tech', amount: '$850.00', date: '25-11-2023', status: 'SENT' },
-    { id: '3', number: 'INV-2023-003', client: 'Nexus Solutions', amount: '$2,400.00', date: '01-12-2023', status: 'DRAFT' },
-    { id: '4', number: 'INV-2023-004', client: 'Starlight Inc', amount: '$450.00', date: '05-12-2023', status: 'OVERDUE' },
-  ];
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true);
+        const [stats, invoices] = await Promise.all([
+          api.get<DashboardStats>('/dashboard/stats'),
+          api.get<RecentInvoice[]>('/dashboard/recent-invoices')
+        ]);
+        setStatsData(stats);
+        setRecentInvoices(invoices);
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const formatCurrency = (amount: number, currency: string = 'INR') => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: currency,
+    }).format(amount);
+  };
+
+  const stats = statsData ? [
+    { label: 'Total Sent', value: formatCurrency(statsData.totalSent, statsData.currency), icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50', trend: statsData.totalSentTrend },
+    { label: 'Paid this Month', value: formatCurrency(statsData.paidThisMonth, statsData.currency), icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', trend: statsData.paidTrend },
+    { label: 'Outstanding', value: formatCurrency(statsData.outstanding, statsData.currency), icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-50', trend: statsData.outstandingTrend },
+    { label: 'Active Clients', value: statsData.activeClients.toString(), icon: Users, color: 'text-purple-600', bg: 'bg-purple-50', trend: statsData.clientsTrend },
+  ] : [];
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -38,8 +64,38 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
+        <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+        <p className="text-gray-500 font-medium">Loading your dashboard...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Upcoming Tasks Banner */}
+      {statsData && statsData.upcomingRecurring > 0 && (
+        <div className="bg-blue-600 rounded-2xl p-4 text-white flex items-center justify-between shadow-lg shadow-blue-200">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 p-2 rounded-lg">
+              <AlertCircle size={24} />
+            </div>
+            <div>
+              <p className="font-bold text-sm">Action Required</p>
+              <p className="text-blue-50 text-xs">You have {statsData.upcomingRecurring} recurring {statsData.upcomingRecurring === 1 ? 'invoice' : 'invoices'} scheduled to be generated this week.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/recurring')}
+            className="bg-white text-blue-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-50 transition-colors"
+          >
+            Review Schedules
+          </button>
+        </div>
+      )}
+
       {/* Welcome Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -63,9 +119,11 @@ const Dashboard: React.FC = () => {
               <div className={`${stat.bg} ${stat.color} p-3 rounded-xl`}>
                 <stat.icon size={24} />
               </div>
-              <div className="flex items-center text-green-500 text-xs font-bold">
-                <TrendingUp size={14} className="mr-1" />
-                +4.5%
+              <div className={`flex items-center text-xs font-bold ${
+                (stat.trend || 0) > 0 ? 'text-green-500' : (stat.trend || 0) < 0 ? 'text-red-500' : 'text-gray-400'
+              }`}>
+                {(stat.trend || 0) >= 0 ? <TrendingUp size={14} className="mr-1" /> : <TrendingDown size={14} className="mr-1" />}
+                {stat.trend !== undefined ? `${stat.trend > 0 ? '+' : ''}${stat.trend}%` : 'Stable'}
               </div>
             </div>
             <p className="text-sm font-medium text-gray-500">{stat.label}</p>
@@ -78,7 +136,10 @@ const Dashboard: React.FC = () => {
       <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex justify-between items-center">
           <h2 className="text-lg font-bold text-gray-900">Recent Invoices</h2>
-          <button className="text-blue-600 hover:text-blue-700 text-sm font-semibold flex items-center gap-1">
+          <button
+            onClick={() => navigate('/invoices')}
+            className="text-blue-600 hover:text-blue-700 text-sm font-semibold flex items-center gap-1"
+          >
             View All <ArrowUpRight size={16} />
           </button>
         </div>
@@ -104,10 +165,10 @@ const Dashboard: React.FC = () => {
                     <span className="text-sm text-gray-600">{invoice.client}</span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <span className="text-sm font-bold text-gray-900">{invoice.amount}</span>
+                    <span className="text-sm font-bold text-gray-900">{formatCurrency(invoice.amount, invoice.currency)}</span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-sm text-gray-500">{invoice.date}</span>
+                    <span className="text-sm text-gray-500">{new Date(invoice.date).toLocaleDateString()}</span>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${getStatusStyle(invoice.status)}`}>
@@ -115,7 +176,10 @@ const Dashboard: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-gray-400 hover:text-gray-600 transition-colors">
+                    <button
+                      onClick={() => navigate(`/invoices/${invoice.id}`)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
                       <MoreVertical size={18} />
                     </button>
                   </td>
@@ -123,6 +187,11 @@ const Dashboard: React.FC = () => {
               ))}
             </tbody>
           </table>
+          {recentInvoices.length === 0 && (
+            <div className="p-12 text-center">
+              <p className="text-gray-500 font-medium">No invoices found. Create your first invoice to get started!</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
