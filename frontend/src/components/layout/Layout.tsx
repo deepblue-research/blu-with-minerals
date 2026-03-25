@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation, Outlet } from 'react-router-dom';
+import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -42,6 +42,16 @@ const NavItem = ({ to, icon, label, active }: NavItemProps) => (
 
 export const Layout: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const userJson = localStorage.getItem('auth_user');
+  const user = userJson ? JSON.parse(userJson) : null;
+
+  const handleLogout = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+    navigate('/login');
+  };
 
   const navigation = [
     { to: '/', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
@@ -71,8 +81,26 @@ export const Layout: React.FC = () => {
           </nav>
         </div>
 
-        <div className="mt-auto p-6 border-t border-gray-100">
-          <button className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-red-600 transition-colors w-full font-medium">
+        <div className="mt-auto p-6 border-t border-gray-100 space-y-4">
+          {user && (
+            <div className="flex items-center gap-3 px-4 py-2">
+              {user.picture ? (
+                <img src={user.picture} alt={user.name} className="w-8 h-8 rounded-full border border-gray-200" />
+              ) : (
+                <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xs">
+                  {user.name?.charAt(0) || 'U'}
+                </div>
+              )}
+              <div className="overflow-hidden">
+                <p className="text-sm font-bold text-gray-900 truncate">{user.name}</p>
+                <p className="text-[10px] text-gray-500 truncate">{user.email}</p>
+              </div>
+            </div>
+          )}
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-red-600 transition-colors w-full font-medium"
+          >
             <LogOut size={20} />
             <span>Logout</span>
           </button>

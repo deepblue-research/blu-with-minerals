@@ -15,10 +15,31 @@ class ApiClient {
       },
     });
 
+    // Request interceptor to inject JWT token
+    this.instance.interceptors.request.use(
+      (config) => {
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
     // Response interceptor for global error handling
     this.instance.interceptors.response.use(
       (response) => response,
       (error) => {
+        // If unauthorized or forbidden, clear session and redirect to login
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('auth_user');
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+        }
+
         const message = error.response?.data?.error || error.message || 'An unexpected error occurred';
         console.error('[API Error]:', message);
         return Promise.reject(error);

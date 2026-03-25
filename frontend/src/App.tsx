@@ -12,6 +12,18 @@ import CreateInvoice from "./pages/CreateInvoice";
 import InvoiceDetails from "./pages/InvoiceDetails";
 import RecurringSchedules from "./pages/RecurringSchedules";
 import Settings from "./pages/Settings";
+import Login from "./pages/Login";
+
+/**
+ * Route Guard for authenticated access
+ */
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const token = localStorage.getItem('auth_token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+};
 
 const NotFound = () => (
   <div className="p-6 text-center">
@@ -28,7 +40,17 @@ const NotFound = () => (
 const App: React.FC = () => {
   return (
     <Routes>
-      <Route element={<Layout />}>
+      {/* Public Routes */}
+      <Route path="/login" element={<Login />} />
+
+      {/* Protected Layout Routes */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
         {/* Default Route */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
@@ -40,10 +62,10 @@ const App: React.FC = () => {
         <Route path="/invoices/:id" element={<InvoiceDetails />} />
         <Route path="/recurring" element={<RecurringSchedules />} />
         <Route path="/settings" element={<Settings />} />
-
-        {/* Fallback */}
-        <Route path="*" element={<NotFound />} />
       </Route>
+
+      {/* Fallback */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };

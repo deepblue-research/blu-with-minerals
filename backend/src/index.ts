@@ -9,6 +9,8 @@ import invoiceRoutes from './routes/invoice.routes';
 import recurringRoutes from './routes/recurring.routes';
 import profileRoutes from './routes/profile.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import authRoutes from './routes/auth.routes';
+import { authenticateToken } from './middleware/auth.middleware';
 
 dotenv.config();
 
@@ -18,11 +20,21 @@ const port = process.env.PORT || 8080;
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/clients', clientRoutes);
-app.use('/api/invoices', invoiceRoutes);
-app.use('/api/recurring', recurringRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/auth', authRoutes);
+
+// Protected routes
+app.use('/api/clients', authenticateToken, clientRoutes);
+app.use('/api/invoices', authenticateToken, invoiceRoutes);
+app.use('/api/profile', authenticateToken, profileRoutes);
+app.use('/api/dashboard', authenticateToken, dashboardRoutes);
+
+// Recurring routes: All routes are protected except /check-recurring
+app.use('/api/recurring', (req, res, next) => {
+  if (req.path === '/check-recurring') {
+    return next();
+  }
+  return authenticateToken(req, res, next);
+}, recurringRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'Invoice Generator Service is running' });
