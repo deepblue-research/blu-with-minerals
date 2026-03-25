@@ -6,7 +6,12 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const connectionString = process.env.DATABASE_URL!;
-const isLocal = process.env.NODE_ENV !== 'production' || connectionString.includes('sslmode=disable');
+
+// Only disable SSL if specifically requested or if connecting to a local database.
+// Remote databases like Neon require SSL even during local development.
+const isLocal = connectionString.includes('sslmode=disable') ||
+                connectionString.includes('localhost') ||
+                connectionString.includes('127.0.0.1');
 
 const pool = new Pool({
   connectionString,

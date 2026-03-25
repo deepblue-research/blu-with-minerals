@@ -163,17 +163,8 @@ router.post('/check-recurring', async (req, res) => {
 
     for (const schedule of dueSchedules) {
       try {
-        // A. Generate Unique Invoice Number using company prefix
-        // Logic: Use previous year value until the third month (inclusive) of the current year.
-        // JS getMonth() is 0-indexed: 0=Jan, 1=Feb, 2=Mar.
-        let displayYear = now.getFullYear();
-        if (now.getMonth() <= 2) {
-          displayYear = displayYear - 1;
-        }
-
-        const count = await prisma.invoice.count();
-        const prefix = company.invoicePrefix || 'INV';
-        const invoiceNumber = `${prefix}-${displayYear}-${(count + 1).toString().padStart(4, '0')}`;
+        // A. Generate Unique Invoice Number using central service logic
+        const invoiceNumber = await invoiceService.generateNextInvoiceNumber();
 
         // B. Calculate Totals from template items
         const items = schedule.templateItems as any[];

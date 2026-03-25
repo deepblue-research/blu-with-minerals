@@ -18,6 +18,49 @@ export class InvoiceService {
   }
 
   /**
+   * Calculates the next sequential invoice number based on the fiscal year logic
+   * (Uses previous year until the third month inclusive)
+   */
+  async generateNextInvoiceNumber(): Promise<string> {
+    const profile = await this.prisma.companyProfile.findFirst();
+    const customPrefix = profile?.invoicePrefix || 'INV';
+
+    const now = new Date();
+    // Logic: Use previous year value until the third month (inclusive) of the current year.
+    // JS getMonth() is 0-indexed: 0=Jan, 1=Feb, 2=Mar.
+    let displayYear = now.getFullYear();
+    if (now.getMonth() <= 2) {
+      displayYear = displayYear - 1;
+    }
+
+    const prefix = `${customPrefix}-${displayYear}-`;
+
+    const invoices = await this.prisma.invoice.findMany({
+      where: {
+        invoiceNumber: {
+          startsWith: prefix,
+        },
+      },
+      select: {
+        invoiceNumber: true,
+      },
+    });
+
+    let maxCount = 0;
+    invoices.forEach((inv) => {
+      const parts = inv.invoiceNumber.split('-');
+      const lastPart = parts[parts.length - 1];
+      const count = parseInt(lastPart, 10);
+      if (!isNaN(count) && count > maxCount) {
+        maxCount = count;
+      }
+    });
+
+    const nextCount = maxCount + 1;
+    return `${prefix}${nextCount.toString().padStart(4, '0')}`;
+  }
+
+  /**
    * Prepares the data object required by the Handlebars template
    */
   async getInvoiceTemplateData(invoiceId: string): Promise<InvoiceTemplateData> {

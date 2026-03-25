@@ -46,43 +46,7 @@ router.get('/', async (req, res) => {
  */
 router.get('/next-number', async (req, res) => {
   try {
-    const profile = await prisma.companyProfile.findFirst();
-    const customPrefix = profile?.invoicePrefix || 'INV';
-
-    const now = new Date();
-    // Logic: Use previous year value until the third month (inclusive) of the current year.
-    // JS getMonth() is 0-indexed: 0=Jan, 1=Feb, 2=Mar.
-    let displayYear = now.getFullYear();
-    if (now.getMonth() <= 2) {
-      displayYear = displayYear - 1;
-    }
-
-    const prefix = `${customPrefix}-${displayYear}-`;
-
-    const invoices = await prisma.invoice.findMany({
-      where: {
-        invoiceNumber: {
-          startsWith: prefix,
-        },
-      },
-      select: {
-        invoiceNumber: true,
-      },
-    });
-
-    let maxCount = 0;
-    invoices.forEach((inv) => {
-      const parts = inv.invoiceNumber.split('-');
-      const lastPart = parts[parts.length - 1];
-      const count = parseInt(lastPart, 10);
-      if (!isNaN(count) && count > maxCount) {
-        maxCount = count;
-      }
-    });
-
-    const nextCount = maxCount + 1;
-
-    const nextNumber = `${prefix}${nextCount.toString().padStart(4, '0')}`;
+    const nextNumber = await invoiceService.generateNextInvoiceNumber();
     res.json({ nextNumber });
   } catch (error) {
     console.error('Error generating next invoice number:', error);
