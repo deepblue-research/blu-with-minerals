@@ -40,8 +40,8 @@ export class EmailService {
       connectionTimeout: 10000, // 10 seconds
       greetingTimeout: 10000,
       socketTimeout: 15000,
-      debug: true, // Enable debug output in the console
-      logger: true // Log internal nodemailer activity
+      debug: process.env.NODE_ENV !== 'production',
+      logger: process.env.NODE_ENV !== 'production'
     });
   }
 
