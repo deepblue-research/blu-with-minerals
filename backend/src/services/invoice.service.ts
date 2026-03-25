@@ -33,6 +33,34 @@ export class InvoiceService {
       displayYear = displayYear - 1;
     }
 
+    // START TEMPORARY PATCH: PREFIX/YYYY/NN
+    const patchPrefix = `${customPrefix}/${displayYear}/`;
+    const invoices = await this.prisma.invoice.findMany({
+      where: {
+        invoiceNumber: {
+          startsWith: patchPrefix,
+        },
+      },
+      select: {
+        invoiceNumber: true,
+      },
+    });
+
+    let maxCount = 0;
+    invoices.forEach((inv) => {
+      const parts = inv.invoiceNumber.split('/');
+      const lastPart = parts[parts.length - 1];
+      const count = parseInt(lastPart, 10);
+      if (!isNaN(count) && count > maxCount) {
+        maxCount = count;
+      }
+    });
+
+    const nextCount = maxCount + 1;
+    return `${patchPrefix}${nextCount.toString().padStart(2, '0')}`;
+    // END TEMPORARY PATCH
+
+    /* ORIGINAL LOGIC:
     const prefix = `${customPrefix}-${displayYear}-`;
 
     const invoices = await this.prisma.invoice.findMany({
@@ -58,6 +86,7 @@ export class InvoiceService {
 
     const nextCount = maxCount + 1;
     return `${prefix}${nextCount.toString().padStart(4, '0')}`;
+    */
   }
 
   /**
