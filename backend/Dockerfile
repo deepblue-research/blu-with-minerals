@@ -2,6 +2,10 @@
 FROM node:20-slim AS frontend-builder
 WORKDIR /app
 
+# Build-time arguments for the frontend
+ARG VITE_GOOGLE_CLIENT_ID
+ARG VITE_API_BASE_URL
+
 # In an NPM workspace, we need all package files for 'npm ci' to work
 COPY package*.json ./
 COPY backend/package*.json ./backend/
@@ -9,7 +13,9 @@ COPY frontend/package*.json ./frontend/
 
 RUN npm ci
 COPY frontend/ ./frontend/
-RUN npm run build:frontend
+RUN VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID \
+    VITE_API_BASE_URL=$VITE_API_BASE_URL \
+    npm run build:frontend
 
 # Stage 2: Build Backend
 FROM node:20-slim AS backend-builder

@@ -7,6 +7,10 @@ steps:
       - "$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO_NAME/$_IMAGE_NAME:$SHORT_SHA"
       - "-t"
       - "$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPO_NAME/$_IMAGE_NAME:latest"
+      - "--build-arg"
+      - "VITE_GOOGLE_CLIENT_ID=$_VITE_GOOGLE_CLIENT_ID"
+      - "--build-arg"
+      - "VITE_API_BASE_URL=$_VITE_API_BASE_URL"
       - "-f"
       - "backend/Dockerfile"
       - "."
@@ -35,6 +39,8 @@ substitutions:
   _AR_HOSTNAME: "asia-south1-docker.pkg.dev"
   _AR_REPO_NAME: "invoice-generator"
   _IMAGE_NAME: "invoice-generator"
+  _VITE_GOOGLE_CLIENT_ID: ""
+  _VITE_API_BASE_URL: "/api"
 
 # Use Cloud Logging for build output
 options:
