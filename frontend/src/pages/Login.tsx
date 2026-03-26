@@ -46,9 +46,6 @@ const Login: React.FC = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
         <div className="p-8 text-center border-b border-gray-50">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-6 shadow-lg shadow-blue-200">
-            I
-          </div>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Welcome Back</h1>
           <p className="text-gray-500 mt-2 font-medium">Please sign in to manage your invoices</p>
         </div>
@@ -73,7 +70,7 @@ const Login: React.FC = () => {
                 onError={handleError}
                 useOneTap
                 theme="filled_blue"
-                shape="pill"
+                shape="rectangular"
                 size="large"
                 text="signin_with"
                 width="100%"
@@ -94,7 +91,7 @@ const Login: React.FC = () => {
       </div>
 
       <p className="mt-8 text-gray-400 text-xs font-medium tracking-wide uppercase">
-        &copy; {new Date().getFullYear()} Invoice Generator Service
+        &copy; {new Date().getFullYear()} Deepblue Research Private Limited
       </p>
     </div>
   );
