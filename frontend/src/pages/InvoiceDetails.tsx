@@ -2,17 +2,32 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  Download,
   Printer,
   Send,
-  Loader2,
   AlertCircle,
+  FileText,
+  Download,
+  MoreVertical,
   CheckCircle,
-  FileText
+  Edit2
 } from 'lucide-react';
+import {
+  Button,
+  Card,
+  Chip,
+  Spinner,
+  Alert,
+  Tooltip,
+  Dropdown,
+  Separator
+} from '@heroui/react';
 import { api, Invoice } from '../utils/api';
-import { clsx } from 'clsx';
 
+/**
+ * Invoice Details page using HeroUI v3 BETA.
+ * Provides a full-screen preview of the generated invoice PDF/HTML
+ * and actions to send or print.
+ */
 const InvoiceDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -20,6 +35,8 @@ const InvoiceDetails: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -38,10 +55,9 @@ const InvoiceDetails: React.FC = () => {
     fetchInvoice();
   }, [id]);
 
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-
   const handlePrint = () => {
     if (iframeRef.current) {
+      iframeRef.current.contentWindow?.focus();
       iframeRef.current.contentWindow?.print();
     } else {
       window.print();
@@ -53,8 +69,7 @@ const InvoiceDetails: React.FC = () => {
     setIsSending(true);
     try {
       await api.post(`/invoices/${id}/send`);
-      alert('Invoice sent successfully to ' + (invoice.client?.email || 'client'));
-      // Refresh status
+      // Refresh status to SENT
       const updated = await api.get<Invoice>(`/invoices/${id}`);
       setInvoice(updated);
     } catch (err: any) {
@@ -64,125 +79,163 @@ const InvoiceDetails: React.FC = () => {
     }
   };
 
-  const formatCurrency = (amount: number, currency: string = 'USD') => {
-    return new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-US', {
-      style: 'currency',
-      currency: currency,
-    }).format(amount);
+  const handleMarkAsPaid = async () => {
+    if (!id || !invoice) return;
+    if (!window.confirm('Mark this invoice as paid?')) return;
+    try {
+      await api.patch(`/invoices/${id}/status`, { status: 'PAID' });
+      const updated = await api.get<Invoice>(`/invoices/${id}`);
+      setInvoice(updated);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to update status');
+    }
   };
 
-  const getStatusStyles = (status: string) => {
+  const getStatusColor = (status: string): "success" | "accent" | "default" | "danger" | "warning" => {
     switch (status) {
-      case 'PAID':
-        return { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-100', dot: 'bg-green-500' };
-      case 'SENT':
-        return { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-100', dot: 'bg-blue-500' };
-      case 'DRAFT':
-        return { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-100', dot: 'bg-gray-400' };
-      case 'OVERDUE':
-        return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-100', dot: 'bg-red-500' };
-      case 'VOID':
-        return { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-100', dot: 'bg-orange-500' };
-      default:
-        return { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-100', dot: 'bg-gray-400' };
+      case 'PAID': return 'success';
+      case 'SENT': return 'accent';
+      case 'DRAFT': return 'default';
+      case 'OVERDUE': return 'danger';
+      case 'VOID': return 'warning';
+      default: return 'default';
     }
   };
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
-        <p className="text-gray-500 font-medium">Loading invoice details...</p>
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <Spinner size="lg" color="accent" />
+        <p className="text-muted font-bold text-xs uppercase tracking-widest">Loading invoice details...</p>
       </div>
     );
   }
 
   if (error || !invoice) {
     return (
-      <div className="max-w-2xl mx-auto py-12 px-4 text-center">
-        <div className="bg-red-50 p-6 rounded-2xl border border-red-100 inline-block">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Error Loading Invoice</h2>
-          <p className="text-red-600 mb-6">{error || 'Invoice not found'}</p>
-          <Link
-            to="/invoices"
-            className="inline-flex items-center gap-2 text-sm font-bold text-gray-900 hover:underline"
-          >
-            <ArrowLeft size={16} /> Back to Invoices
-          </Link>
+      <div className="max-w-xl mx-auto py-12 px-4">
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Error Loading Invoice</Alert.Title>
+            <Alert.Description>{error || 'The requested invoice could not be found.'}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+        <div className="mt-6 flex justify-center">
+           <Button variant="tertiary" onPress={() => navigate('/invoices')}>
+             <ArrowLeft size={16} className="mr-2" />
+             Back to Invoices
+           </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6">
       {/* Action Header - Hidden on print */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 no-print">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/invoices')}
-            className="p-2 hover:bg-white border border-transparent hover:border-gray-100 rounded-xl transition-all text-gray-500"
+          <Button
+            isIconOnly
+            variant="tertiary"
+            onPress={() => navigate('/invoices')}
           >
             <ArrowLeft size={20} />
-          </button>
-          <div>
+          </Button>
+          <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-gray-900">{invoice.invoiceNumber}</h1>
-              {(() => {
-                const styles = getStatusStyles(invoice.status);
-                return (
-                  <div className={clsx(
-                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-bold tracking-wide uppercase",
-                    styles.bg, styles.text, styles.border
-                  )}>
-                    <span className={clsx("h-1.5 w-1.5 rounded-full", styles.dot)}></span>
-                    {invoice.status}
-                  </div>
-                );
-              })()}
+              <h1 className="text-2xl font-bold">{invoice.invoiceNumber}</h1>
+              <Chip
+                color={getStatusColor(invoice.status)}
+                variant="soft"
+                size="sm"
+              >
+                <Chip.Label>{invoice.status}</Chip.Label>
+              </Chip>
             </div>
-            <p className="text-xs text-gray-500">View and manage this invoice</p>
+            <p className="text-xs text-muted flex items-center gap-1">
+              <FileText size={12} /> View and manage client billing
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all"
+        <div className="flex items-center gap-3">
+          {invoice.status === 'DRAFT' && (
+            <Button
+              variant="tertiary"
+              onPress={() => navigate(`/invoices/${id}/edit`)}
+            >
+              <Edit2 size={18} className="mr-2" />
+              Edit Draft
+            </Button>
+          )}
+
+          <Button
+            variant="primary"
+            isPending={isSending}
+            onPress={handleSendEmail}
           >
-            <Printer size={18} /> Print / Save PDF
-          </button>
-          <button
-            onClick={handleSendEmail}
-            disabled={isSending}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-sm disabled:opacity-50"
-          >
-            {isSending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-            Send to Client
-          </button>
+            <Send size={18} className="mr-2" />
+            Send Email
+          </Button>
+
+          <Dropdown>
+            <Button
+              variant="tertiary"
+              isIconOnly
+              aria-label="More Actions"
+            >
+              <MoreVertical size={18} />
+            </Button>
+            <Dropdown.Popover>
+              <Dropdown.Menu
+                aria-label="Invoice actions"
+                onAction={(key: any) => {
+                  if (key === 'print') handlePrint();
+                  if (key === 'mark-paid') handleMarkAsPaid();
+                }}
+              >
+                <Dropdown.Item id="print" textValue="Print / Download">
+                  <div className="flex items-center gap-2">
+                    <Printer size={16} />
+                    <span>Print / Download</span>
+                  </div>
+                </Dropdown.Item>
+                {invoice.status !== 'PAID' && (
+                  <Dropdown.Item id="mark-paid" textValue="Mark as Paid">
+                    <div className="flex items-center gap-2 text-success font-medium">
+                      <CheckCircle size={16} />
+                      <span>Mark as Paid</span>
+                    </div>
+                  </Dropdown.Item>
+                )}
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
         </div>
       </div>
 
       {/* Invoice HTML Preview via Iframe */}
-      <div className="bg-white border border-gray-100 rounded-3xl shadow-xl overflow-hidden max-w-4xl mx-auto print:shadow-none print:border-none print:m-0">
-        <iframe
-          ref={iframeRef}
-          src={`/api/invoices/${id}/html`}
-          className="w-full h-[1200px] border-none"
-          title="Invoice Preview"
-        />
-      </div>
+      <Card className="max-w-5xl mx-auto print:shadow-none print:border-none print:m-0">
+        <Card.Content className="p-0">
+          <iframe
+            ref={iframeRef}
+            src={`/api/invoices/${id}/html?token=${localStorage.getItem('auth_token')}`}
+            className="w-full h-300 border-none bg-white"
+            title="Invoice Preview"
+          />
+        </Card.Content>
+      </Card>
 
       {/* Styles for print */}
       <style>{`
         @media print {
           .no-print { display: none !important; }
-          body { background: white !important; }
-          .print\\:shadow-none { box-shadow: none !important; }
-          .print\\:border-none { border: none !important; }
-          .print\\:m-0 { margin: 0 !important; }
+          body { background: white !important; padding: 0 !important; margin: 0 !important; }
+          .max-w-5xl { max-width: 100% !important; }
           main { padding: 0 !important; }
+          header, aside, nav { display: none !important; }
         }
       `}</style>
     </div>

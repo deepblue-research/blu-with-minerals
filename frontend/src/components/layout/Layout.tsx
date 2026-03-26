@@ -6,44 +6,35 @@ import {
   FileText,
   RefreshCw,
   Settings,
-  LogOut
+  LogOut,
+  Menu,
+  X
 } from 'lucide-react';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import {
+  Button,
+  Avatar,
+  ListBox,
+  ScrollShadow,
+  Separator,
+  Drawer,
+  useOverlayState,
+  Label
+} from '@heroui/react';
 
 /**
- * Utility for tailwind class merging
+ * Main application layout component.
+ * Provides a responsive navigation system:
+ * - Desktop: Permanent left sidebar with ListBox navigation.
+ * - Mobile: Top header with a Drawer menu.
  */
-function cn(...inputs: any[]) {
-  return twMerge(clsx(inputs));
-}
-
-interface NavItemProps {
-  to: string;
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-}
-
-const NavItem = ({ to, icon, label, active }: NavItemProps) => (
-  <Link
-    to={to}
-    className={cn(
-      "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium",
-      active
-        ? "bg-blue-50 text-blue-600"
-        : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-    )}
-  >
-    {icon}
-    <span>{label}</span>
-  </Link>
-);
-
 export const Layout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // HeroUI v3 Drawer state
+  const drawerState = useOverlayState();
+
+  // Load user data from localStorage (populated during Google Login)
   const userJson = localStorage.getItem('auth_user');
   const user = userJson ? JSON.parse(userJson) : null;
 
@@ -61,58 +52,137 @@ export const Layout: React.FC = () => {
     { to: '/settings', icon: <Settings size={20} />, label: 'Settings' },
   ];
 
-  return (
-    <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed inset-y-0 left-0 z-10">
-        <div className="p-6">
-          <div className="flex items-center gap-2 mb-8">
-            <span className="text-xl font-bold tracking-tight text-gray-900">Invoices</span>
-          </div>
+  /**
+   * Internal sidebar content shared between desktop aside and mobile drawer
+   */
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full py-6">
+      <div className="px-6 mb-8 flex items-center justify-between">
+        <span className="text-xl font-bold tracking-tight text-foreground">Invoices</span>
+        <Button
+          isIconOnly
+          variant="ghost"
+          size="sm"
+          onPress={drawerState.close}
+          className="lg:hidden -mr-2"
+          aria-label="Close menu"
+        >
+          <X size={20} />
+        </Button>
+      </div>
 
-          <nav className="space-y-1">
-            {navigation.map((item) => (
-              <NavItem
-                key={item.to}
-                {...item}
-                active={location.pathname === item.to}
-              />
-            ))}
-          </nav>
-        </div>
-
-        <div className="mt-auto p-6 border-t border-gray-100 space-y-4">
-          {user && (
-            <div className="flex items-center gap-3 px-4 py-2">
-              {user.picture ? (
-                <img src={user.picture} alt={user.name} className="w-8 h-8 rounded-full border border-gray-200" />
-              ) : (
-                <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xs">
-                  {user.name?.charAt(0) || 'U'}
-                </div>
-              )}
-              <div className="overflow-hidden">
-                <p className="text-sm font-bold text-gray-900 truncate">{user.name}</p>
-                <p className="text-[10px] text-gray-500 truncate">{user.email}</p>
+      <ScrollShadow className="flex-1 px-3">
+        <ListBox
+          aria-label="Main Navigation"
+          variant="default"
+          selectionMode="single"
+          selectedKeys={new Set([location.pathname])}
+          onSelectionChange={(keys) => {
+            if (keys !== "all" && keys.size > 0) {
+              const key = Array.from(keys)[0];
+              navigate(key as string);
+              drawerState.close();
+            }
+          }}
+          className="gap-1"
+        >
+          {navigation.map((item) => (
+            <ListBox.Item
+              key={item.to}
+              id={item.to}
+              textValue={item.label}
+              className={location.pathname === item.to ? "bg-accent/10 text-accent" : "text-muted"}
+            >
+              <div className="flex items-center gap-3">
+                {item.icon}
+                <span className="font-medium">{item.label}</span>
               </div>
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      </ScrollShadow>
+
+      <div className="mt-auto px-4 pt-4 border-t border-separator space-y-4">
+        {user && (
+          <div className="flex items-center gap-3 px-2 py-2">
+            <Avatar size="sm">
+              <Avatar.Image src={user.picture} alt={user.name} />
+              <Avatar.Fallback className="bg-accent/10 text-accent font-bold text-xs">
+                {user.name?.charAt(0) || 'U'}
+              </Avatar.Fallback>
+            </Avatar>
+            <div className="overflow-hidden">
+              <p className="text-sm font-bold text-foreground truncate">{user.name}</p>
+              <p className="text-[10px] text-muted truncate">{user.email}</p>
             </div>
-          )}
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-red-600 transition-colors w-full font-medium"
+          </div>
+        )}
+        <Button
+          fullWidth
+          variant="ghost"
+          className="justify-start font-medium h-11 text-danger hover:bg-danger/10"
+          onPress={handleLogout}
+        >
+          <LogOut size={20} className="mr-2" />
+          Logout
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col lg:flex-row min-h-screen bg-background">
+      {/*
+          Mobile Header
+          Visible only on screens smaller than 'lg' (1024px)
+      */}
+      <header className="lg:hidden flex items-center justify-between px-4 h-16 border-b border-separator bg-surface sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <Button
+            isIconOnly
+            variant="tertiary"
+            onPress={drawerState.open}
+            aria-label="Open menu"
           >
-            <LogOut size={20} />
-            <span>Logout</span>
-          </button>
+            <Menu size={24} />
+          </Button>
+          <span className="font-bold text-lg tracking-tight">Invoices</span>
         </div>
+      </header>
+
+      {/*
+          Mobile Menu Drawer
+      */}
+      <Drawer>
+        <Drawer.Backdrop isOpen={drawerState.isOpen} onOpenChange={drawerState.setOpen}>
+          <Drawer.Content placement="left" className="w-72 max-w-[85vw]">
+            <Drawer.Dialog className="bg-surface outline-none">
+              <Drawer.Body className="p-0">
+                <SidebarContent />
+              </Drawer.Body>
+            </Drawer.Dialog>
+          </Drawer.Content>
+        </Drawer.Backdrop>
+      </Drawer>
+
+      {/*
+          Desktop Sidebar
+          Visible only on 'lg' screens and above.
+      */}
+      <aside className="hidden lg:flex w-64 bg-surface border-r border-separator flex-col sticky top-0 h-screen overflow-hidden">
+        <SidebarContent />
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 ml-64 p-8">
-        <div className="max-w-6xl mx-auto">
+      {/*
+          Main Content Area
+      */}
+      <main className="flex-1 w-full overflow-y-auto">
+        <div className="max-w-6xl mx-auto p-4 md:p-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
           <Outlet />
         </div>
       </main>
     </div>
   );
 };
+
+export default Layout;

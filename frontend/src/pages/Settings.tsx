@@ -10,13 +10,28 @@ import {
   Upload,
   Info,
   Hash,
-  Loader2,
   CheckCircle2,
   AlertCircle,
   Send,
   RefreshCw,
   DollarSign
 } from 'lucide-react';
+import {
+  Button,
+  Input,
+  InputGroup,
+  TextArea,
+  Select,
+  ListBox,
+  Label,
+  Card,
+  Separator,
+  Tabs,
+  Spinner,
+  Alert,
+  Avatar,
+  Tooltip
+} from '@heroui/react';
 import { api, CompanyProfile } from '../utils/api';
 
 interface SmtpStatus {
@@ -27,6 +42,10 @@ interface SmtpStatus {
   from?: string;
 }
 
+/**
+ * Settings page using HeroUI v3 BETA components.
+ * Manages company profile, billing preferences, and email infrastructure.
+ */
 const Settings: React.FC = () => {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingSmtp, setLoadingSmtp] = useState(true);
@@ -82,8 +101,7 @@ const Settings: React.FC = () => {
     fetchSmtpStatus();
   }, []);
 
-  const handleProfileSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleProfileSave = async () => {
     setSaving(true);
     setMessage(null);
     try {
@@ -97,8 +115,8 @@ const Settings: React.FC = () => {
     }
   };
 
-  const handleSmtpTest = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSmtpTest = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!testEmail) return;
 
     setTestingSmtp(true);
@@ -113,346 +131,341 @@ const Settings: React.FC = () => {
     }
   };
 
+  if (loadingProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <Spinner size="lg" color="accent" />
+        <p className="text-muted font-bold text-xs uppercase tracking-widest">Loading settings...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto pb-12">
       {/* Header */}
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Settings</h1>
-          <p className="text-gray-500 mt-1">Manage your business identity and delivery infrastructure.</p>
+          <h1 className="text-3xl font-bold">Settings</h1>
+          <p className="text-muted mt-1">Manage your business identity and delivery infrastructure.</p>
         </div>
-        <button
-          onClick={() => fetchSmtpStatus()}
-          className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-          title="Refresh connection status"
-        >
-          <RefreshCw size={18} className={loadingSmtp ? 'animate-spin' : ''} />
-        </button>
+        <div className="flex items-center gap-3">
+          <Tooltip>
+            <Button
+              isIconOnly
+              variant="tertiary"
+              onPress={() => fetchSmtpStatus()}
+              isPending={loadingSmtp}
+              aria-label="Refresh connection status"
+            >
+              <RefreshCw size={18} />
+            </Button>
+            <Tooltip.Content>Refresh connection status</Tooltip.Content>
+          </Tooltip>
+          <Button
+            variant="primary"
+            isPending={saving}
+            onPress={handleProfileSave}
+          >
+            <Save size={20} className="mr-2" />
+            Save Changes
+          </Button>
+        </div>
       </div>
 
       {message && (
-        <div className={`p-4 rounded-xl border flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300 ${
-          message.type === 'success' ? 'bg-green-50 border-green-100 text-green-800' : 'bg-red-50 border-red-100 text-red-800'
-        }`}>
-          {message.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-          <span className="text-sm font-medium">{message.text}</span>
-        </div>
+        <Alert
+          status={message.type === 'success' ? 'success' : 'danger'}
+          className="shadow-sm"
+        >
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>{message.text}</Alert.Title>
+          </Alert.Content>
+        </Alert>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Left Column: Company Profile */}
-        <div className="xl:col-span-2 space-y-6">
-          <section className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                  <Building2 size={20} />
-                </div>
-                <h2 className="text-lg font-bold text-gray-900">Company Profile</h2>
+      <Tabs
+        aria-label="Settings sections"
+        variant="secondary"
+      >
+        <Tabs.ListContainer>
+          <Tabs.List>
+            <Tabs.Tab id="business">
+              <div className="flex items-center gap-2">
+                <Building2 size={18} />
+                <span>Business Profile</span>
               </div>
-              <button
-                onClick={handleProfileSave}
-                disabled={saving || loadingProfile}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
-              >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                Save Profile
-              </button>
-            </div>
+              <Tabs.Indicator />
+            </Tabs.Tab>
+            <Tabs.Tab id="email">
+              <div className="flex items-center gap-2">
+                <Mail size={18} />
+                <span>Email Delivery</span>
+              </div>
+              <Tabs.Indicator />
+            </Tabs.Tab>
+          </Tabs.List>
+        </Tabs.ListContainer>
 
-            {loadingProfile ? (
-              <div className="p-20 flex flex-col items-center justify-center">
-                <Loader2 className="animate-spin text-blue-600 mb-4" size={32} />
-                <p className="text-gray-500 font-medium text-sm">Loading profile data...</p>
-              </div>
-            ) : (
-              <form className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2 flex items-center gap-6 mb-4">
-                  <div className="h-24 w-24 bg-gray-100 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 group hover:border-blue-400 hover:text-blue-500 transition-all">
-                    {companyInfo.logoUrl ? (
-                      <img src={companyInfo.logoUrl} alt="Logo" className="h-full w-full object-contain p-2 rounded-2xl" />
-                    ) : (
-                      <>
-                        <Upload size={24} />
-                        <span className="text-[10px] font-bold uppercase mt-2">Logo</span>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-bold text-gray-900">Business Logo</h4>
-                    <p className="text-xs text-gray-500 mt-1">Provide a URL to your company logo for the invoices.</p>
-                    <input
-                      type="text"
-                      className="mt-2 text-xs w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://storage.googleapis.com/..."
+        <Tabs.Panel id="business" className="space-y-6 mt-6">
+            <Card>
+              <Card.Content className="space-y-8">
+                {/* Logo Section */}
+                <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
+                  <Avatar className="w-28 h-28 rounded-2xl border border-separator bg-white shadow-sm overflow-hidden">
+                    <Avatar.Image
+                      src={companyInfo.logoUrl || ''}
+                      alt="Business Logo"
+                      className="object-contain p-3"
+                    />
+                    <Avatar.Fallback className="rounded-2xl">
+                      <Upload size={32} className="text-muted" />
+                    </Avatar.Fallback>
+                  </Avatar>
+                  <div className="flex-1 w-full space-y-2">
+                    <h4 className="text-sm font-bold">Business Logo</h4>
+                    <p className="text-xs text-muted">Provide a public URL to your company logo for invoice headers.</p>
+                    <Input
+                      placeholder="https://storage.googleapis.com/your-bucket/logo.png"
                       value={companyInfo.logoUrl || ''}
-                      onChange={(e) => setCompanyInfo({...companyInfo, logoUrl: e.target.value})}
+                      onChange={(e: any) => setCompanyInfo({ ...companyInfo, logoUrl: e.target.value })}
+                      className="w-full"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Legal Name</label>
-                  <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Acme Tech Solutions"
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                      value={companyInfo.name || ''}
-                      onChange={(e) => setCompanyInfo({...companyInfo, name: e.target.value})}
-                    />
-                  </div>
-                </div>
+                <Separator />
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Support Email</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                      type="email"
-                      required
-                      placeholder="contact@company.com"
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                      value={companyInfo.email || ''}
-                      onChange={(e) => setCompanyInfo({...companyInfo, email: e.target.value})}
-                    />
+                {/* Primary Info Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs uppercase tracking-wider mb-1 block">Legal Entity Name</Label>
+                    <InputGroup>
+                      <InputGroup.Prefix><Building2 size={16} className="text-muted" /></InputGroup.Prefix>
+                      <InputGroup.Input
+                        placeholder="Deepblue Research Pvt Ltd"
+                        value={companyInfo.name || ''}
+                        onChange={(e: any) => setCompanyInfo({ ...companyInfo, name: e.target.value })}
+                      />
+                    </InputGroup>
                   </div>
-                </div>
-
-                <div className="md:col-span-2 space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Billing Address</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3 text-gray-400" size={16} />
-                    <textarea
-                      rows={3}
-                      required
-                      placeholder="Street, City, Country, Zip Code"
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs uppercase tracking-wider mb-1 block">Billing Email</Label>
+                    <InputGroup>
+                      <InputGroup.Prefix><Mail size={16} className="text-muted" /></InputGroup.Prefix>
+                      <InputGroup.Input
+                        type="email"
+                        placeholder="billing@company.com"
+                        value={companyInfo.email || ''}
+                        onChange={(e: any) => setCompanyInfo({ ...companyInfo, email: e.target.value })}
+                      />
+                    </InputGroup>
+                  </div>
+                  <div className="md:col-span-2 flex flex-col gap-1">
+                    <Label className="text-xs uppercase tracking-wider mb-1 block">Physical Address</Label>
+                    <TextArea
+                      placeholder="Full legal address for tax purposes"
                       value={companyInfo.address || ''}
-                      onChange={(e) => setCompanyInfo({...companyInfo, address: e.target.value})}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCompanyInfo({ ...companyInfo, address: e.target.value })}
                     />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Tax ID / VAT Number</label>
-                  <div className="relative">
-                    <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                      type="text"
-                      placeholder="e.g. GB12345678"
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                      value={companyInfo.taxId || ''}
-                      onChange={(e) => setCompanyInfo({...companyInfo, taxId: e.target.value})}
-                    />
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs uppercase tracking-wider mb-1 block">Tax / VAT ID</Label>
+                    <InputGroup>
+                      <InputGroup.Prefix><ShieldCheck size={16} className="text-muted" /></InputGroup.Prefix>
+                      <InputGroup.Input
+                        placeholder="GSTIN or VAT number"
+                        value={companyInfo.taxId || ''}
+                        onChange={(e: any) => setCompanyInfo({ ...companyInfo, taxId: e.target.value })}
+                      />
+                    </InputGroup>
+                  </div>
+                  <Select
+                    className="w-full"
+                    value={companyInfo.currency || 'INR'}
+                    onChange={(key: any) => setCompanyInfo({ ...companyInfo, currency: key as string })}
+                  >
+                    <Label className="text-xs uppercase mb-2 block">Default Currency</Label>
+                    <Select.Trigger>
+                      <div className="flex items-center gap-2">
+                        <DollarSign size={16} className="text-muted" />
+                        <Select.Value />
+                      </div>
+                      <Select.Indicator />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        <ListBox.Item id="INR" textValue="INR">INR - Indian Rupee</ListBox.Item>
+                        <ListBox.Item id="USD" textValue="USD">USD - US Dollar</ListBox.Item>
+                        <ListBox.Item id="EUR" textValue="EUR">EUR - Euro</ListBox.Item>
+                        <ListBox.Item id="GBP" textValue="GBP">GBP - British Pound</ListBox.Item>
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                  <div className="flex flex-col gap-1">
+                    <Label className="font-bold text-xs uppercase tracking-wider mb-1 block">Invoice Prefix</Label>
+                    <InputGroup className="bg-default/40 h-10 rounded-lg">
+                      <InputGroup.Prefix><Hash size={16} className="text-muted" /></InputGroup.Prefix>
+                      <InputGroup.Input
+                        placeholder="INV"
+                        value={companyInfo.invoicePrefix || ''}
+                        onChange={(e: any) => setCompanyInfo({ ...companyInfo, invoicePrefix: e.target.value })}
+                      />
+                    </InputGroup>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Invoice Number Prefix</label>
-                  <div className="relative">
-                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                      type="text"
-                      placeholder="e.g. INV"
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                      value={companyInfo.invoicePrefix || ''}
-                      onChange={(e) => setCompanyInfo({ ...companyInfo, invoicePrefix: e.target.value })}
-                    />
-                  </div>
-                </div>
+                <Separator />
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Default Currency</label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <select
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none"
-                      value={companyInfo.currency || 'INR'}
-                      onChange={(e) => setCompanyInfo({ ...companyInfo, currency: e.target.value })}
-                    >
-                      <option value="INR">INR - Indian Rupee</option>
-                      <option value="USD">USD - US Dollar</option>
-                      <option value="EUR">EUR - Euro</option>
-                      <option value="GBP">GBP - British Pound</option>
-                    </select>
-                  </div>
+                {/* Financial Info */}
+                <div className="space-y-4">
+                  <h4 className="text-sm flex items-center gap-2">
+                    <CreditCard size={18} className="text-accent" />
+                    Bank Payment Instructions
+                  </h4>
+                  <TextArea
+                    rows={4}
+                    placeholder="Provide your IBAN, SWIFT, or wire instructions here. This appears on all PDFs."
+                    value={companyInfo.bankDetails || ''}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCompanyInfo({ ...companyInfo, bankDetails: e.target.value })}
+                    className="w-full"
+                  />
                 </div>
+              </Card.Content>
+            </Card>
+        </Tabs.Panel>
 
-                <div className="md:col-span-2 space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Bank Payment Instructions</label>
-                  <div className="relative">
-                    <CreditCard className="absolute left-3 top-3 text-gray-400" size={16} />
-                    <textarea
-                      rows={3}
-                      placeholder="Provide your IBAN, SWIFT, or wire instructions here..."
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none font-mono text-sm"
-                      value={companyInfo.bankDetails || ''}
-                      onChange={(e) => setCompanyInfo({ ...companyInfo, bankDetails: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="md:col-span-2 space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Custom Email Subject</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                      type="text"
-                      placeholder="e.g. Invoice {invoiceNumber} from {companyName}"
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+        <Tabs.Panel id="email" className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <Card.Content className="space-y-6">
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs uppercase tracking-wider mb-1 block">Email Subject Template</Label>
+                    <Input
+                      placeholder="Invoice {invoiceNumber} from {companyName}"
                       value={companyInfo.emailSubject || ''}
-                      onChange={(e) => setCompanyInfo({ ...companyInfo, emailSubject: e.target.value })}
+                      onChange={(e: any) => setCompanyInfo({ ...companyInfo, emailSubject: e.target.value })}
                     />
+                    <p className="text-[10px] text-muted italic mt-1 px-1">Variables: {"{invoiceNumber}, {companyName}"}</p>
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1">Available variables: {'{invoiceNumber}, {companyName}'}</p>
-                </div>
 
-                <div className="md:col-span-2 space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Custom Email Body</label>
-                  <div className="relative">
-                    <Info className="absolute left-3 top-3 text-gray-400" size={16} />
-                    <textarea
-                      rows={4}
-                      placeholder="Enter the message you want to send with your invoices..."
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none text-sm"
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs uppercase tracking-wider mb-1 block">Email Body Text</Label>
+                    <TextArea
+                      placeholder="Write a friendly message to your clients..."
                       value={companyInfo.emailBody || ''}
-                      onChange={(e) => setCompanyInfo({ ...companyInfo, emailBody: e.target.value })}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCompanyInfo({ ...companyInfo, emailBody: e.target.value })}
                     />
                   </div>
-                </div>
 
-                <div className="md:col-span-2 space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Email Footer HTML</label>
-                  <div className="relative">
-                    <Hash className="absolute left-3 top-3 text-gray-400" size={16} />
-                    <textarea
-                      rows={6}
-                      placeholder="Enter HTML for the email footer..."
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none font-mono text-xs"
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs uppercase tracking-wider mb-1 block">Email Footer (HTML allowed)</Label>
+                    <TextArea
+                      placeholder="<p>Sent via InvoiceApp</p>"
                       value={companyInfo.emailFooterHtml || ''}
-                      onChange={(e) => setCompanyInfo({ ...companyInfo, emailFooterHtml: e.target.value })}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCompanyInfo({ ...companyInfo, emailFooterHtml: e.target.value })}
                     />
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1">This HTML will be appended to the bottom of the invoice emails.</p>
-                </div>
 
-                <div className="md:col-span-2 space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Default CC Emails</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                      type="text"
-                      placeholder="e.g. boss@company.com, accounting@company.com"
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                      value={companyInfo.ccEmails || ''}
-                      onChange={(e) => setCompanyInfo({ ...companyInfo, ccEmails: e.target.value })}
-                    />
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs uppercase tracking-wider mb-1 block">Default CC Emails</Label>
+                    <InputGroup>
+                      <InputGroup.Prefix><Mail size={16} className="text-muted" /></InputGroup.Prefix>
+                      <InputGroup.Input
+                        placeholder="finance@yourcompany.com, boss@yourcompany.com"
+                        value={companyInfo.ccEmails || ''}
+                        onChange={(e: any) => setCompanyInfo({ ...companyInfo, ccEmails: e.target.value })}
+                      />
+                    </InputGroup>
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1">Separate multiple emails with commas. These will be CC'd on every invoice sent.</p>
-                </div>
-              </form>
-            )}
-          </section>
-        </div>
-
-        {/* Right Column: SMTP Connection Info */}
-        <div className="space-y-6">
-          <section className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-gray-50 bg-gray-50/50">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
-                  <Server size={20} />
-                </div>
-                <h2 className="text-lg font-bold text-gray-900">SMTP Connection</h2>
-              </div>
+                </Card.Content>
+              </Card>
             </div>
 
-            <div className="p-6 space-y-6">
-              {loadingSmtp ? (
-                <div className="flex flex-col items-center justify-center py-10">
-                  <Loader2 className="animate-spin text-purple-600 mb-3" size={24} />
-                  <p className="text-xs text-gray-500 font-medium tracking-tight">Verifying connection...</p>
-                </div>
-              ) : (
-                <div className={`p-4 rounded-2xl border flex flex-col gap-3 ${
-                  smtpStatus?.verified ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Connection Status</span>
-                    {smtpStatus?.verified ? (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full uppercase">
-                        <CheckCircle2 size={10} /> Verified
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full uppercase">
-                        <AlertCircle size={10} /> Not Verified
-                      </span>
-                    )}
+            <div className="space-y-6">
+              <Card>
+                <Card.Content>
+                  <div className="flex items-center gap-2">
+                    <Server size={18} className="text-accent" />
+                    <h3 className="text-md font-bold">SMTP Status</h3>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-500">Host:</span>
-                      <span className="font-bold text-gray-900 truncate ml-4">{smtpStatus?.host || 'None Set'}</span>
+                  {loadingSmtp ? (
+                    <div className="flex flex-col items-center py-6 gap-3">
+                      <Spinner size="sm" color="accent" />
+                      <p className="text-[10px] text-muted uppercase tracking-widest">Checking infrastructure...</p>
                     </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-500">User:</span>
-                      <span className="font-bold text-gray-900 truncate ml-4">{smtpStatus?.user || 'None Set'}</span>
-                    </div>
-                  </div>
-
-                  {!smtpStatus?.configured && (
-                    <div className="mt-2 text-[11px] text-amber-700 italic">
-                      Configure <code>SMTP_HOST</code> and <code>SMTP_USER</code> in your <code>.env</code> file.
+                  ) : (
+                    <div className={`p-4 rounded-xl border-2 border-dashed flex flex-col gap-4 ${
+                      smtpStatus?.verified ? 'border-success' : 'border-warning'
+                    }`}>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] uppercase tracking-widest text-muted">Verification</span>
+                        {smtpStatus?.verified ? (
+                          <div className="flex items-center gap-1.5 text-[10px] text-success uppercase">
+                            <CheckCircle2 size={12} /> Live
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-[10px] text-warning uppercase">
+                            <AlertCircle size={12} /> Pending
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted">Host</span>
+                          <span className="font-bold">{smtpStatus?.host || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted">User</span>
+                          <span className="font-bold truncate max-w-30">{smtpStatus?.user || 'N/A'}</span>
+                        </div>
+                      </div>
                     </div>
                   )}
-                </div>
-              )}
 
-              {/* Test Email Form */}
-              <form onSubmit={handleSmtpTest} className="space-y-3">
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Send Test Email</label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                    <input
-                      type="email"
-                      required
-                      placeholder="test@example.com"
-                      className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 outline-none transition-all"
-                      value={testEmail}
-                      onChange={(e) => setTestEmail(e.target.value)}
-                    />
+                  <Separator />
+
+                  <form onSubmit={handleSmtpTest} className="space-y-4 mt-6">
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-[10px] uppercase tracking-wider mb-1 block">Send Test Email</Label>
+                      <InputGroup>
+                        <InputGroup.Prefix><Send size={14} className="text-muted" /></InputGroup.Prefix>
+                        <InputGroup.Input
+                          placeholder="you@example.com"
+                          value={testEmail}
+                          onChange={(e) => setTestEmail(e.target.value)}
+                        />
+                      </InputGroup>
+                    </div>
+                    <Button
+                      fullWidth
+                      variant="primary"
+                      size="sm"
+                      isDisabled={!smtpStatus?.configured || loadingSmtp}
+                      isPending={testingSmtp}
+                      onPress={() => handleSmtpTest()}
+                    >
+                      Fire Test Email
+                    </Button>
+                  </form>
+                </Card.Content>
+              </Card>
+
+              <Card>
+                <Card.Content className="flex flex-row gap-4">
+                  <Info size={20} className="text-accent shrink-0" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold">Zero Cost Tip</p>
+                    <p className="text-[11px] text-muted leading-relaxed italic">
+                      Use personal Gmail/Outlook SMTP with an App Password to maintain $0 infrastructure costs.
+                    </p>
                   </div>
-                  <button
-                    type="submit"
-                    disabled={testingSmtp || !smtpStatus?.configured || loadingSmtp}
-                    className="p-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50 shadow-md shadow-purple-100 transition-all"
-                    title="Send Test"
-                  >
-                    {testingSmtp ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                  </button>
-                </div>
-              </form>
+                </Card.Content>
+              </Card>
             </div>
-          </section>
-
-          <div className="bg-amber-50 border border-amber-100 p-6 rounded-3xl flex gap-4">
-            <div className="text-amber-500 shrink-0">
-              <Info size={24} />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-amber-900 uppercase tracking-tight">Zero Cost Tip</h4>
-              <p className="text-xs text-amber-800 leading-relaxed mt-1">
-                To keep costs at $0, use your personal Gmail or Outlook SMTP settings with an App Password. These settings are read directly from your server's environment.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+        </Tabs.Panel>
+      </Tabs>
     </div>
   );
 };

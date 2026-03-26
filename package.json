@@ -7,6 +7,10 @@
     "backend",
     "frontend"
   ],
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
   "scripts": {
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
@@ -16,6 +20,8 @@
     "prisma:migrate": "npm run prisma:migrate -w backend"
   },
   "overrides": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "@types/pg": "8.11.11"
   },
   "keywords": [],

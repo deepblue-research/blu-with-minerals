@@ -60,6 +60,7 @@ const App: React.FC = () => {
         <Route path="/invoices" element={<Invoices />} />
         <Route path="/invoices/new" element={<CreateInvoice />} />
         <Route path="/invoices/:id" element={<InvoiceDetails />} />
+        <Route path="/invoices/:id/edit" element={<CreateInvoice />} />
         <Route path="/recurring" element={<RecurringSchedules />} />
         <Route path="/settings" element={<Settings />} />
       </Route>

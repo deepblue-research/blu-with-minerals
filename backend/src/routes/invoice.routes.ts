@@ -140,6 +140,100 @@ router.post('/', async (req, res) => {
 });
 
 /**
+ * PATCH /api/invoices/:id
+ * Update an existing draft invoice
+ */
+router.patch('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      clientId,
+      invoiceNumber,
+      issueDate,
+      dueDate,
+      items,
+      taxRate,
+      notes,
+      currency
+    } = req.body;
+
+    // 1. Check if invoice exists and is DRAFT
+    const existing = await prisma.invoice.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Invoice not found' });
+    if (existing.status !== 'DRAFT') {
+      return res.status(400).json({ error: 'Only draft invoices can be modified' });
+    }
+
+    // 2. Validate Client
+    const client = await prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+
+    // 3. Fetch Company Profile (for fresh snapshot)
+    const company = await prisma.companyProfile.findFirst();
+    if (!company) return res.status(400).json({ error: 'Please configure your Company Profile first' });
+
+    // 4. Calculate Totals
+    const subtotal = items.reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0);
+    const taxAmount = (subtotal * (taxRate || 0)) / 100;
+    const totalAmount = subtotal + taxAmount;
+
+    // 5. Update Invoice with fresh Snapshots and Items
+    const invoice = await prisma.invoice.update({
+      where: { id },
+      data: {
+        invoiceNumber,
+        issueDate: new Date(issueDate),
+        dueDate: new Date(dueDate),
+        clientId,
+        subtotal,
+        taxRate: taxRate || 0,
+        taxAmount,
+        totalAmount,
+        notes,
+        currency: currency || 'INR',
+        clientSnapshot: {
+          name: client.name,
+          email: client.email,
+          address: client.address,
+          taxId: client.taxId,
+          ccEmails: client.ccEmails,
+        },
+        companySnapshot: {
+          name: company.name,
+          email: company.email,
+          address: company.address,
+          taxId: company.taxId,
+          bankDetails: company.bankDetails,
+          logoUrl: company.logoUrl,
+          emailFooterHtml: company.emailFooterHtml,
+          ccEmails: company.ccEmails,
+        },
+        items: {
+          deleteMany: {},
+          create: items.map((item: any) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            total: item.quantity * item.unitPrice,
+          })),
+        },
+      },
+      include: {
+        items: true,
+      },
+    });
+
+    res.json(invoice);
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Invoice number already exists' });
+    }
+    console.error('Error updating invoice:', error);
+    res.status(500).json({ error: 'Failed to update invoice' });
+  }
+});
+
+/**
  * GET /api/invoices/:id
  * Get full invoice details
  */

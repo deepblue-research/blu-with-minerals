@@ -9,11 +9,23 @@ import {
   Calendar,
   Hash,
   ArrowLeft,
-  Loader2,
-  DollarSign,
-  AlertCircle
+  DollarSign
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  Button,
+  Input,
+  InputGroup,
+  Select,
+  ListBox,
+  Label,
+  TextArea,
+  Card,
+  Separator,
+  Alert,
+  Spinner,
+  Tooltip
+} from '@heroui/react';
 import { api, Client } from '../utils/api';
 import { formatDateDDMMYYYY } from '../utils/date';
 
@@ -25,17 +37,23 @@ interface LineItem {
   total: number;
 }
 
+/**
+ * Create Invoice page using HeroUI v3 BETA.
+ * Allows users to configure client details, line items, and taxes.
+ */
 const CreateInvoice: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditing = !!id;
 
-  // State
+  // Component State
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form State
-  const [clientId, setClientId] = useState('');
+  // Form Field State
+  const [clientId, setClientId] = useState<string>('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState('');
@@ -48,16 +66,46 @@ const CreateInvoice: React.FC = () => {
     { id: '1', description: '', quantity: 1, unitPrice: 0, total: 0 }
   ]);
 
-  // Fetch initial data on mount
+  // Fetch initial data (clients list and next suggested invoice number or existing invoice)
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [clientsData, numberData] = await Promise.all([
-          api.get<Client[]>('/clients'),
-          api.get<{ nextNumber: string }>('/invoices/next-number')
+        setIsLoadingClients(true);
+        const [clientsData] = await Promise.all([
+          api.get<Client[]>('/clients')
         ]);
         setClients(clientsData);
-        setInvoiceNumber(numberData.nextNumber);
+
+        if (isEditing) {
+          const invoice = await api.get<any>(`/invoices/${id}`);
+
+          if (invoice.status !== 'DRAFT') {
+            setError('Only draft invoices can be edited.');
+            navigate('/invoices');
+            return;
+          }
+
+          setClientId(invoice.clientId);
+          setInvoiceNumber(invoice.invoiceNumber);
+          setIssueDate(invoice.issueDate.split('T')[0]);
+          setDueDate(invoice.dueDate?.split('T')[0] || '');
+          setTaxRate(invoice.taxRate);
+          setNotes(invoice.notes || '');
+          setCurrency(invoice.currency || 'INR');
+
+          if (invoice.items && invoice.items.length > 0) {
+            setItems(invoice.items.map((item: any) => ({
+              id: item.id || Math.random().toString(36).substr(2, 9),
+              description: item.description,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              total: item.quantity * item.unitPrice
+            })));
+          }
+        } else {
+          const numberData = await api.get<{ nextNumber: string }>('/invoices/next-number');
+          setInvoiceNumber(numberData.nextNumber);
+        }
       } catch (err: any) {
         setError('Failed to load initial data. Please try again.');
       } finally {
@@ -65,9 +113,9 @@ const CreateInvoice: React.FC = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [id, isEditing, navigate]);
 
-  // Totals Calculation
+  // Calculation Logic
   const subtotal = items.reduce((sum, item) => sum + item.total, 0);
   const taxAmount = (subtotal * taxRate) / 100;
   const totalAmount = subtotal + taxAmount;
@@ -79,7 +127,7 @@ const CreateInvoice: React.FC = () => {
     }).format(value);
   };
 
-  // Handlers
+  // Line Item Handlers
   const addItem = () => {
     const newItem: LineItem = {
       id: Math.random().toString(36).substr(2, 9),
@@ -111,6 +159,7 @@ const CreateInvoice: React.FC = () => {
     setItems(newItems);
   };
 
+  // Submission Logic
   const handleSaveInvoice = async (sendImmediately: boolean = false) => {
     if (!clientId) {
       setError('Please select a client');
@@ -125,7 +174,6 @@ const CreateInvoice: React.FC = () => {
     setError(null);
 
     try {
-      // 1. Create the invoice
       const invoiceData = {
         clientId,
         invoiceNumber,
@@ -141,11 +189,17 @@ const CreateInvoice: React.FC = () => {
         }))
       };
 
-      const createdInvoice: any = await api.post('/invoices', invoiceData);
+      let currentInvoiceId = id;
 
-      // 2. If "Generate & Send" was clicked, trigger the send endpoint
-      if (sendImmediately) {
-        await api.post(`/invoices/${createdInvoice.id}/send`);
+      if (isEditing) {
+        await api.patch(`/invoices/${id}`, invoiceData);
+      } else {
+        const createdInvoice: any = await api.post('/invoices', invoiceData);
+        currentInvoiceId = createdInvoice.id;
+      }
+
+      if (sendImmediately && currentInvoiceId) {
+        await api.post(`/invoices/${currentInvoiceId}/send`);
       }
 
       navigate('/invoices');
@@ -157,262 +211,343 @@ const CreateInvoice: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 pb-20">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 pb-20">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <Link to="/invoices" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <ArrowLeft size={20} className="text-gray-500" />
-          </Link>
+          <Button
+            isIconOnly
+            variant="tertiary"
+            onPress={() => navigate('/invoices')}
+          >
+            <ArrowLeft size={20} />
+          </Button>
           <div>
-            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Create Invoice</h1>
-            <p className="text-gray-500 mt-1">Configure details and line items for your new invoice.</p>
+            <h1 className="text-3xl font-bold">{isEditing ? 'Edit Invoice' : 'Create Invoice'}</h1>
+            <p className="text-muted">
+              {isEditing ? 'Modify your draft invoice details.' : 'Configure details and line items for your new invoice.'}
+            </p>
           </div>
         </div>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={() => handleSaveInvoice(false)}
-            className="px-4 py-2 border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors flex items-center gap-2"
+        <div className="flex gap-2">
+          <Button
+            variant="tertiary"
+            isPending={isSubmitting}
+            onPress={() => handleSaveInvoice(false)}
           >
-            {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-            Save as Draft
-          </button>
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={() => handleSaveInvoice(true)}
-            className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 shadow-md shadow-blue-200 disabled:opacity-50 transition-all flex items-center gap-2"
+            <Save size={18} className="mr-2" />
+            {isEditing ? 'Update Draft' : 'Save Draft'}
+          </Button>
+          <Button
+            variant="primary"
+            isPending={isSubmitting}
+            onPress={() => handleSaveInvoice(true)}
           >
-            {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
-            Generate & Send
-          </button>
+            <Send size={18} className="mr-2" />
+            Send Invoice
+          </Button>
         </div>
       </div>
 
+      {/* Validation Error Alert */}
       {error && (
-        <div className="bg-red-50 border border-red-100 p-4 rounded-xl flex items-center gap-3 text-red-700">
-          <AlertCircle size={20} />
-          <p className="text-sm font-medium">{error}</p>
-        </div>
+        <Alert status="danger" className="shadow-sm">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Validation Error</Alert.Title>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
       )}
 
+      {/* Main Form Area */}
       <form className="grid grid-cols-1 lg:grid-cols-3 gap-8" onSubmit={(e) => e.preventDefault()}>
-        {/* Left Column: Basic Info */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-6">
-            <h3 className="text-lg font-bold text-gray-900 border-b border-gray-50 pb-4">Invoice Details</h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <User size={14} className="text-gray-400" /> Select Client
-                </label>
-                <select
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none disabled:opacity-50"
-                  value={clientId}
-                  disabled={isLoadingClients}
-                  onChange={(e) => setClientId(e.target.value)}
-                >
-                  <option value="">{isLoadingClients ? 'Loading clients...' : 'Choose a client...'}</option>
-                  {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.name} ({c.email})</option>
-                  ))}
-                </select>
-                {clients.length === 0 && !isLoadingClients && (
-                  <p className="text-[10px] text-amber-600 font-bold uppercase mt-1">No clients found. Go to Clients page to add one.</p>
-                )}
-              </div>
+        {/* Left Column: Details & Items */}
+        <div className="lg:col-span-2 space-y-4">
 
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <Hash size={14} className="text-gray-400" /> Invoice Number
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  value={invoiceNumber}
-                  onChange={(e) => setInvoiceNumber(e.target.value)}
-                />
-              </div>
+          {/* Invoice Details Card */}
+          <Card>
+            <Card.Header className="px-3 pt-3 pb-1">
+              <Card.Title className="text-lg font-bold">Invoice Details</Card.Title>
+            </Card.Header>
+            <Card.Content className="px-3 pb-3 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <DollarSign size={14} className="text-gray-400" /> Currency
-                </label>
-                <select
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none"
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                >
-                  <option value="INR">INR - Indian Rupee</option>
-                  <option value="USD">USD - US Dollar</option>
-                  <option value="EUR">EUR - Euro</option>
-                  <option value="GBP">GBP - British Pound</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <Calendar size={14} className="text-gray-400" /> Issue Date
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    value={issueDate}
-                    onChange={(e) => setIssueDate(e.target.value)}
-                  />
-                  <div className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                    {formatDateDDMMYYYY(issueDate)}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <Calendar size={14} className="text-gray-400" /> Due Date
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                  />
-                  {dueDate && (
-                    <div className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                      {formatDateDDMMYYYY(dueDate)}
-                    </div>
+                {/* Client Selection */}
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs uppercase tracking-wider">Select Client</Label>
+                  <Select
+                    className="w-full"
+                    placeholder={isLoadingClients ? "Loading clients..." : "Choose a client"}
+                    value={clientId}
+                    onChange={(key: any) => setClientId(key as string)}
+                  >
+                    <Select.Trigger>
+                      <div className="flex items-center gap-2">
+                        <User size={16} className="text-muted" />
+                        <Select.Value />
+                      </div>
+                      <Select.Indicator />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {clients.map((client) => (
+                          <ListBox.Item key={client.id} id={client.id} textValue={client.name}>
+                            <div className="flex flex-col">
+                              <span className="font-bold">{client.name}</span>
+                              <span className="text-xs text-muted">{client.email}</span>
+                            </div>
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                  {clients.length === 0 && !isLoadingClients && (
+                    <p className="text-[10px] text-warning font-bold uppercase mt-1">No clients found. Go to Clients page to add one.</p>
                   )}
                 </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Line Items */}
-          <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-6">
-            <div className="flex justify-between items-center border-b border-gray-50 pb-4">
-              <h3 className="text-lg font-bold text-gray-900">Line Items</h3>
-              <button
-                type="button"
-                onClick={addItem}
-                className="text-blue-600 hover:text-blue-700 font-bold text-sm flex items-center gap-1"
-              >
-                <Plus size={16} /> Add Item
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-12 gap-4 px-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                <div className="col-span-6">Description</div>
-                <div className="col-span-2 text-center">Qty</div>
-                <div className="col-span-2 text-right">Price</div>
-                <div className="col-span-2 text-right">Total</div>
-              </div>
-
-              {items.map((item) => (
-                <div key={item.id} className="grid grid-cols-12 gap-4 items-center group">
-                  <div className="col-span-6">
-                    <input
-                      type="text"
-                      placeholder="Service or product description..."
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
-                      value={item.description}
-                      onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                {/* Invoice Number */}
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs uppercase tracking-wider">Invoice Number</Label>
+                  <InputGroup>
+                    <InputGroup.Prefix><Hash size={16} className="text-muted" /></InputGroup.Prefix>
+                    <InputGroup.Input
+                      placeholder="e.g. INV-001"
+                      value={invoiceNumber}
+                      onChange={(e: any) => setInvoiceNumber(e.target.value)}
                     />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-center focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-right focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
-                      value={item.unitPrice}
-                      onChange={(e) => updateItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-                  <div className="col-span-2 flex items-center justify-between">
-                    <span className="text-sm font-bold text-gray-900 w-full text-right pr-2">
-                      {formatValue(item.total)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(item.id)}
-                      className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                  </InputGroup>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-            <h3 className="text-lg font-bold text-gray-900">Notes & Terms</h3>
-            <textarea
-              rows={4}
-              placeholder="Any additional information, bank details, or terms..."
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
+                {/* Currency Selection */}
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs uppercase tracking-wider">Currency</Label>
+                  <Select
+                    className="w-full"
+                    value={currency}
+                    onChange={(key: any) => setCurrency(key as string)}
+                  >
+                    <Select.Trigger>
+                      <div className="flex items-center gap-2">
+                        <DollarSign size={16} className="text-muted" />
+                        <Select.Value />
+                      </div>
+                      <Select.Indicator />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        <ListBox.Item id="INR" textValue="INR">INR - Indian Rupee</ListBox.Item>
+                        <ListBox.Item id="USD" textValue="USD">USD - US Dollar</ListBox.Item>
+                        <ListBox.Item id="EUR" textValue="EUR">EUR - Euro</ListBox.Item>
+                        <ListBox.Item id="GBP" textValue="GBP">GBP - British Pound</ListBox.Item>
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                </div>
+
+                {/* Issue Date */}
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs uppercase tracking-wider">Issue Date</Label>
+                  <InputGroup>
+                    <InputGroup.Prefix><Calendar size={16} className="text-muted" /></InputGroup.Prefix>
+                    <InputGroup.Input
+                      type="date"
+                      value={issueDate}
+                      onChange={(e: any) => setIssueDate(e.target.value)}
+                    />
+                  </InputGroup>
+                </div>
+
+                {/* Due Date */}
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs uppercase tracking-wider">Due Date</Label>
+                  <InputGroup>
+                    <InputGroup.Prefix><Calendar size={16} className="text-muted" /></InputGroup.Prefix>
+                    <InputGroup.Input
+                      type="date"
+                      value={dueDate}
+                      onChange={(e: any) => setDueDate(e.target.value)}
+                    />
+                  </InputGroup>
+                </div>
+
+              </div>
+            </Card.Content>
+          </Card>
+
+          {/* Invoice Items Card */}
+          <Card>
+            <Card.Header className="px-3 pt-3 pb-1">
+              <Card.Title className="text-lg font-bold">Invoice Items</Card.Title>
+            </Card.Header>
+            <Card.Content className="p-0">
+              {/* Header for Desktop */}
+              <div className="hidden md:grid grid-cols-12 gap-4 text-[10px] font-bold uppercase tracking-widest text-muted px-3 py-2 border-y border-separator/30 bg-default/5">
+                <div className="col-span-5">Description</div>
+                <div className="col-span-2 text-center">Quantity</div>
+                <div className="col-span-2 text-right">Unit Price</div>
+                <div className="col-span-2 text-right">Total</div>
+                <div className="col-span-1 text-right">Action</div>
+              </div>
+
+              <div className="px-3 py-3 space-y-6 md:space-y-2">
+                {items.map((item, index) => (
+                  <div key={item.id} className="grid grid-cols-12 gap-x-4 gap-y-3 md:gap-y-0 items-start md:items-center">
+                    {/* Row 1: Item Description */}
+                    <div className="col-span-12 md:col-span-5 flex flex-col gap-1">
+                      <Label className="md:hidden text-[10px] font-bold uppercase text-muted">Description</Label>
+                      <Input
+                        fullWidth
+                        placeholder="Service description..."
+                        value={item.description}
+                        onChange={(e: any) => updateItem(item.id, 'description', e.target.value)}
+                      />
+                    </div>
+
+                    {/* Row 2: Quantity and Unit Price */}
+                    <div className="col-span-6 md:col-span-2 flex flex-col gap-1">
+                      <Label className="md:hidden text-[10px] font-bold uppercase text-muted text-center">Qty</Label>
+                      <Input
+                        fullWidth
+                        type="number"
+                        placeholder="0"
+                        value={item.quantity as any}
+                        onChange={(e: any) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                        className="text-center"
+                      />
+                    </div>
+
+                    <div className="col-span-6 md:col-span-2 flex flex-col gap-1">
+                      <Label className="md:hidden text-[10px] font-bold uppercase text-muted text-right">Price</Label>
+                      <Input
+                        fullWidth
+                        type="number"
+                        placeholder="0.00"
+                        value={item.unitPrice as any}
+                        onChange={(e) => updateItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                        className="text-right"
+                      />
+                    </div>
+
+                    {/* Row 3: Total per item */}
+                    <div className="col-span-12 md:col-span-2 flex flex-row justify-between items-center md:justify-end gap-1">
+                      <Label className="md:hidden text-[10px] font-bold uppercase text-muted">Line Total</Label>
+                      <div className="text-right h-10 flex items-center justify-end">
+                        <span className="font-bold tabular-nums whitespace-nowrap">
+                          {formatValue(item.total)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Row 4: Delete Button */}
+                    <div className="col-span-12 md:col-span-1 flex justify-end md:items-center">
+                      <Tooltip>
+                        <Button
+                          isIconOnly
+                          variant="danger"
+                          size="sm"
+                          onPress={() => removeItem(item.id)}
+                          isDisabled={items.length <= 1}
+                          aria-label="Remove Item"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                        <Tooltip.Content>Remove Item</Tooltip.Content>
+                      </Tooltip>
+                    </div>
+
+                    {/* Visual Divider for Mobile */}
+                    <div className="col-span-12 md:hidden border-b border-separator/30 my-1" />
+                  </div>
+                ))}
+              </div>
+
+              {/* Add Item Action at the Bottom */}
+              <div className="px-3 py-2 bg-default/5 flex justify-start border-t border-separator/30">
+                <Button
+                  variant="tertiary"
+                  size="sm"
+                  onPress={addItem}
+                >
+                  <Plus size={16} className="mr-2" />
+                  Add New Line Item
+                </Button>
+              </div>
+            </Card.Content>
+          </Card>
+
+          {/* Notes & Terms Card */}
+          <Card>
+            <Card.Header className="px-3 pt-3 pb-1">
+              <Card.Title className="text-lg font-bold">Additional Notes</Card.Title>
+            </Card.Header>
+            <Card.Content className="px-3 pb-3 space-y-3">
+              <TextArea
+                placeholder="Any additional information, bank details, or terms..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </Card.Content>
+          </Card>
         </div>
 
-        {/* Right Column: Summary & Preview */}
-        <div className="space-y-6">
-          <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-6 sticky top-8">
-            <h3 className="text-lg font-bold text-gray-900 border-b border-gray-50 pb-4">Summary</h3>
-
-            <div className="space-y-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500 font-medium">Subtotal</span>
-                <span className="text-gray-900 font-bold">{formatValue(subtotal)}</span>
-              </div>
-
-              <div className="space-y-2">
+        {/* Right Column: Order Summary */}
+        <div className="space-y-4">
+          <Card>
+            <Card.Header className="px-3 pt-3 pb-1">
+              <Card.Title className="text-lg font-bold">Summary</Card.Title>
+            </Card.Header>
+            <Card.Content className="px-3 pb-3 space-y-3">
+              <div className="space-y-4">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500 font-medium">Tax Rate (%)</span>
-                  <input
-                    type="number"
-                    className="w-16 text-right px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    value={taxRate}
-                    onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
-                  />
+                  <span className="text-muted">Subtotal</span>
+                  <span className="font-bold">{formatValue(subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Tax Amount</span>
-                  <span className="text-gray-900">{formatValue(taxAmount)}</span>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted">Tax Rate (%)</span>
+                    <Input
+                      type="number"
+                      value={taxRate}
+                      onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                      className="w-20 text-right font-bold"
+                    />
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted">Tax Amount</span>
+                    <span className="font-medium">{formatValue(taxAmount)}</span>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="flex justify-between items-end pt-2">
+                  <span className="text-xs uppercase tracking-widest font-bold text-muted">Total Due</span>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold leading-none tabular-nums">
+                      {formatValue(totalAmount)}
+                    </p>
+                    <p className="text-[10px] text-muted mt-2 uppercase tracking-widest font-medium">
+                      All inclusive ({currency})
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
-                <span className="text-base font-bold text-gray-900">Total Amount</span>
-                <span className="text-3xl font-extrabold text-blue-600">{formatValue(totalAmount)}</span>
-              </div>
-            </div>
-
-            <div className="pt-6">
-              <div className="bg-blue-50 rounded-2xl p-4 flex gap-3">
-                <div className="text-blue-600">
-                  <FileText size={20} />
-                </div>
-                <p className="text-xs text-blue-800 leading-relaxed font-medium">
-                  Saving this invoice will automatically generate a professional PDF and store it in your Cloud Storage.
+              {/* Informational Tip */}
+              <div className="flex gap-3">
+                <FileText className="text-muted shrink-0" size={20} />
+                <p className="text-xs leading-relaxed italic text-muted">
+                  A professional PDF will be generated and stored securely in your cloud storage once the invoice is saved.
                 </p>
               </div>
-            </div>
-          </div>
+            </Card.Content>
+          </Card>
         </div>
+
       </form>
     </div>
   );

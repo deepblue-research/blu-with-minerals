@@ -1,15 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
-import { Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
+import {
+  Card,
+  Separator,
+  Alert,
+  Spinner
+} from '@heroui/react';
 
+interface LoginResponse {
+  token: string;
+  user: {
+    email: string;
+    name: string;
+    picture: string;
+  };
+}
+
+/**
+ * Login page using Google OAuth and HeroUI v3 BETA components.
+ * Access is restricted by the backend based on the authorized email domain.
+ */
 const Login: React.FC = () => {
+  console.log("[Login] Component rendering");
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    console.log("[Login] Component mounted");
+    // Check for existing token
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      console.log("[Login] Token found, redirecting...");
+      navigate('/');
+    }
+  }, [navigate]);
+
   const handleSuccess = async (credentialResponse: CredentialResponse) => {
+    console.log("[Login] Google success:", credentialResponse);
     if (!credentialResponse.credential) {
       setError('Login failed: No credentials received');
       return;
@@ -20,7 +51,7 @@ const Login: React.FC = () => {
 
     try {
       // Send the Google token to our backend for verification and domain check
-      const response: any = await api.post('/auth/google', {
+      const response = await api.post<LoginResponse>('/auth/google', {
         token: credentialResponse.credential,
       });
 
@@ -39,60 +70,73 @@ const Login: React.FC = () => {
   };
 
   const handleError = () => {
+    console.error("[Login] Google sign-in failed");
     setError('Google Sign-In was unsuccessful. Please try again.');
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
-        <div className="p-8 text-center border-b border-gray-50">
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Welcome Back</h1>
-          <p className="text-gray-500 mt-2 font-medium">Please sign in to manage your invoices</p>
-        </div>
+    <div className="min-h-screen bg-background flex flex-col justify-center items-center p-6 animate-in fade-in duration-700">
+      <Card className="max-w-md w-full shadow-2xl border border-separator/50 bg-surface">
+        <Card.Header className="flex flex-col gap-1 p-10 text-center">
+          <Card.Title className="text-3xl font-extrabold text-foreground tracking-tight">Welcome Back</Card.Title>
+          <Card.Description className="text-muted font-medium">Please sign in to manage your invoices</Card.Description>
+        </Card.Header>
 
-        <div className="p-8 space-y-6">
+        <Separator className="bg-separator/30" />
+
+        <Card.Content className="p-10 space-y-8">
           {error && (
-            <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-700 text-sm animate-in fade-in slide-in-from-top-2 duration-300">
-              <AlertCircle size={20} className="shrink-0" />
-              <p className="font-medium">{error}</p>
-            </div>
+            <Alert status="danger" className="animate-in slide-in-from-top-2 duration-300">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Title>Authentication Error</Alert.Title>
+                <Alert.Description>{error}</Alert.Description>
+              </Alert.Content>
+            </Alert>
           )}
 
-          <div className="flex justify-center py-4">
+          <div className="flex justify-center py-4 min-h-[50px]">
             {isLoading ? (
-              <div className="flex flex-col items-center gap-3">
-                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-                <p className="text-sm font-bold text-gray-500">Verifying account...</p>
+              <div className="flex flex-col items-center gap-4">
+                <Spinner size="lg" color="accent" />
+                <p className="text-xs font-bold text-muted uppercase tracking-widest">Verifying account...</p>
               </div>
             ) : (
-              <GoogleLogin
-                onSuccess={handleSuccess}
-                onError={handleError}
-                useOneTap
-                theme="filled_blue"
-                shape="rectangular"
-                size="large"
-                text="signin_with"
-                width="100%"
-              />
+              <div className="w-full flex justify-center">
+                <GoogleLogin
+                  onSuccess={handleSuccess}
+                  onError={handleError}
+                  useOneTap
+                  theme="outline"
+                  shape="rectangular"
+                  size="large"
+                  text="signin_with"
+                  width="320"
+                />
+              </div>
             )}
           </div>
+        </Card.Content>
 
-          <div className="pt-4 border-t border-gray-50">
-            <div className="flex items-center gap-3 text-gray-400">
-              <ShieldCheck size={18} className="shrink-0" />
-              <p className="text-[11px] font-medium leading-relaxed">
-                Access is restricted to authorized company accounts.
-                Ensure you are signing in with your official domain email.
-              </p>
-            </div>
+        <Card.Footer className="p-10 pt-0">
+          <div className="flex items-start gap-4 p-4 bg-default/20 rounded-xl border border-separator/20">
+            <ShieldCheck size={20} className="shrink-0 text-foreground mt-0.5" />
+            <p className="text-[11px] font-medium leading-relaxed text-muted italic">
+              Access is strictly restricted to authorized company accounts.
+              Ensure you are signing in with your official domain email address.
+            </p>
           </div>
-        </div>
-      </div>
+        </Card.Footer>
+      </Card>
 
-      <p className="mt-8 text-gray-400 text-xs font-medium tracking-wide uppercase">
-        &copy; {new Date().getFullYear()} Deepblue Research Private Limited
-      </p>
+      <div className="mt-12 flex flex-col items-center gap-2">
+        <p className="text-muted text-[10px] font-bold tracking-[0.2em] uppercase">
+          Powered by Invoice Service v1.0
+        </p>
+        <p className="text-muted/50 text-[10px] font-medium">
+          &copy; {new Date().getFullYear()} Deepblue Research Private Limited
+        </p>
+      </div>
     </div>
   );
 };
