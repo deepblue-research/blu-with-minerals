@@ -348,9 +348,8 @@ const RecurringSchedules: React.FC = () => {
             setError(null);
           }
         }}>
-          <Modal.Container size="lg">
+          <Modal.Container size="full" className="max-w-[95vw] sm:max-w-2xl">
             <Modal.Dialog className="bg-surface border border-separator shadow-2xl">
-              <Modal.CloseTrigger />
               <Modal.Header className="flex items-center gap-3">
                 <div className="text-accent">
                   <RefreshCw size={20} />
@@ -446,54 +445,87 @@ const RecurringSchedules: React.FC = () => {
                 <Separator className="bg-separator/30" />
 
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
+                  <div className="flex items-center">
                     <h4 className="text-sm uppercase tracking-wider text-muted">Invoice Template</h4>
-                    <Button variant="primary" size="sm" onPress={handleAddItem}>
-                      <Plus size={16} className="mr-1" />
-                      Add Item
-                    </Button>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {formData.templateItems.map((item, index) => (
-                      <div key={index} className="grid grid-cols-12 gap-3 items-center">
-                        <div className="col-span-12 md:col-span-6">
+                      <div key={index} className="p-5 border border-separator/40 rounded-2xl bg-default/5 space-y-5">
+                        {/* Row 1: Description */}
+                        <div className="flex flex-col gap-1.5">
+                          <Label className="text-[10px] uppercase tracking-[0.1em] font-bold text-muted px-1">Description</Label>
                           <Input
-                            placeholder="Description"
+                            placeholder="Service name or product description"
                             value={item.description}
                             onChange={(e: any) => handleItemChange(index, 'description', e.target.value)}
                           />
                         </div>
-                        <div className="col-span-4 md:col-span-2">
-                          <Input
-                            type="number"
-                            placeholder="Qty"
-                            value={item.quantity as any}
-                            onChange={(e: any) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)}
-                            className="text-center"
-                          />
-                        </div>
-                        <div className="col-span-4 md:col-span-3">
-                          <InputGroup>
-                            <InputGroup.Prefix>
-                              <span className="text-xs text-muted">{formData.currency}</span>
-                            </InputGroup.Prefix>
-                            <InputGroup.Input
+
+                        {/* Row 2: Qty and Price */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="flex flex-col gap-1.5 w-full">
+                            <Label className="text-[10px] uppercase tracking-[0.1em] font-bold text-muted px-1">Quantity</Label>
+                            <Input
                               type="number"
-                              placeholder="Price"
-                              value={item.unitPrice as any}
-                              onChange={(e: any) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                              className="text-right"
+                              placeholder="0"
+                              className="w-full"
+                              value={item.quantity as any}
+                              onChange={(e: any) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)}
                             />
-                          </InputGroup>
+                          </div>
+                          <div className="flex flex-col gap-1.5 w-full">
+                            <Label className="text-[10px] uppercase tracking-[0.1em] font-bold text-muted px-1">Unit Price</Label>
+                            <InputGroup className="w-full">
+                              <InputGroup.Prefix>
+                                <span className="text-xs text-muted">{formData.currency}</span>
+                              </InputGroup.Prefix>
+                              <InputGroup.Input
+                                type="number"
+                                placeholder="0.00"
+                                className="w-full"
+                                value={item.unitPrice as any}
+                                onChange={(e: any) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                              />
+                            </InputGroup>
+                          </div>
                         </div>
-                        <div className="col-span-4 md:col-span-1 flex justify-end">
-                          <Button isIconOnly variant="tertiary" size="sm" onPress={() => handleRemoveItem(index)} isDisabled={formData.templateItems.length === 1}>
-                            <Trash className="text-muted hover:text-danger" size={16} />
+
+                        {/* Row 3: Total Amount */}
+                        <div className="flex justify-between items-center px-1 border-t border-separator/20 pt-3">
+                          <span className="text-[10px] uppercase tracking-[0.1em] text-muted font-bold">Line Total</span>
+                          <span className="font-bold text-foreground">
+                            {formatCurrency(item.quantity * item.unitPrice, formData.currency)}
+                          </span>
+                        </div>
+
+                        {/* Row 4: Delete Button */}
+                        <div className="flex justify-end pt-1">
+                          <Button
+                            variant="tertiary"
+                            size="sm"
+                            className="text-danger hover:bg-danger/10 h-9 px-4 rounded-lg transition-colors"
+                            onPress={() => handleRemoveItem(index)}
+                            isDisabled={formData.templateItems.length === 1}
+                          >
+                            <Trash2 size={16} className="mr-2" />
+                            Remove Item
                           </Button>
                         </div>
                       </div>
                     ))}
+                  </div>
+
+                  <div className="flex justify-center pt-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onPress={handleAddItem}
+                      className="px-6 shadow-sm"
+                    >
+                      <Plus size={18} className="mr-2" />
+                      Add Item
+                    </Button>
                   </div>
                 </div>
 

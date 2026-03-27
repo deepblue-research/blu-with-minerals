@@ -27,8 +27,8 @@
 @layer base {
   :root {
     color-scheme: light;
-    --radius: 0.125rem;
-    --field-radius: 0.125rem;
+    --radius: 0.045rem;
+    --field-radius: 0.045rem;
 
     --accent: oklch(0 0 0);
     --accent-foreground: oklch(100% 0 0);

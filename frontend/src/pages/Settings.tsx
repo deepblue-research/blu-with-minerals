@@ -363,7 +363,8 @@ const Settings: React.FC = () => {
                     <TextArea
                       placeholder="<p>Sent via InvoiceApp</p>"
                       value={companyInfo.emailFooterHtml || ''}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCompanyInfo({ ...companyInfo, emailFooterHtml: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCompanyInfo({ ...companyInfo, emailFooterHtml: e.target.value })}
+                    className="h-50"
                     />
                   </div>
 
@@ -449,18 +450,6 @@ const Settings: React.FC = () => {
                       Fire Test Email
                     </Button>
                   </form>
-                </Card.Content>
-              </Card>
-
-              <Card>
-                <Card.Content className="flex flex-row gap-4">
-                  <Info size={20} className="text-accent shrink-0" />
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold">Zero Cost Tip</p>
-                    <p className="text-[11px] text-muted leading-relaxed italic">
-                      Use personal Gmail/Outlook SMTP with an App Password to maintain $0 infrastructure costs.
-                    </p>
-                  </div>
                 </Card.Content>
               </Card>
             </div>

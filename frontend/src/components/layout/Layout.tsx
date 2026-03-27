@@ -57,19 +57,10 @@ export const Layout: React.FC = () => {
    */
   const SidebarContent = () => (
     <div className="flex flex-col h-full py-6">
-      <div className="px-6 mb-8 flex items-center justify-between">
-        <span className="text-xl font-bold tracking-tight text-foreground">Invoices</span>
-        <Button
-          isIconOnly
-          variant="ghost"
-          size="sm"
-          onPress={drawerState.close}
-          className="lg:hidden -mr-2"
-          aria-label="Close menu"
-        >
-          <X size={20} />
-        </Button>
-      </div>
+
+        <span className="w-full flex justify-center">
+          <img src="/logo.svg" width={77} className='' />
+        </span>
 
       <ScrollShadow className="flex-1 px-3">
         <ListBox

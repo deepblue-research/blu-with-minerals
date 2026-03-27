@@ -536,14 +536,6 @@ const CreateInvoice: React.FC = () => {
                   </div>
                 </div>
               </div>
-
-              {/* Informational Tip */}
-              <div className="flex gap-3">
-                <FileText className="text-muted shrink-0" size={20} />
-                <p className="text-xs leading-relaxed italic text-muted">
-                  A professional PDF will be generated and stored securely in your cloud storage once the invoice is saved.
-                </p>
-              </div>
             </Card.Content>
           </Card>
         </div>
