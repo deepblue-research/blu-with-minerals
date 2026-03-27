@@ -77,7 +77,8 @@ const Login: React.FC = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col justify-center items-center p-6 animate-in fade-in duration-700">
       <Card className="max-w-md w-full shadow-2xl border border-separator/50 bg-surface">
-        <Card.Header className="flex flex-col gap-1 p-10 text-center">
+        <Card.Header className="flex flex-col gap-1 p-10 text-center items-center">
+          <img src="/logo.svg" width={77} />
           <Card.Title className="text-3xl font-extrabold text-foreground tracking-tight">Welcome Back</Card.Title>
           <Card.Description className="text-muted font-medium">Please sign in to manage your invoices</Card.Description>
         </Card.Header>
@@ -130,8 +131,8 @@ const Login: React.FC = () => {
       </Card>
 
       <div className="mt-12 flex flex-col items-center gap-2">
-        <p className="text-muted text-[10px] font-bold tracking-[0.2em] uppercase">
-          Powered by Invoice Service v1.0
+        <p className="text-muted text-[10px] font-bold tracking-[0.2em]">
+          powered by Adeyak v1.0
         </p>
         <p className="text-muted/50 text-[10px] font-medium">
           &copy; {new Date().getFullYear()} Deepblue Research Private Limited
